@@ -1,0 +1,89 @@
+{
+  "u01_druckpartner_clean.pdf": {
+    "decision": "APPROVE",
+    "must_find": [],
+    "planted": "nothing — matches order exactly"
+  },
+  "u02_baltic_clean_reverse_charge.pdf": {
+    "decision": "APPROVE",
+    "must_find": [],
+    "planted": "nothing — EU reverse charge, 0 % VAT is correct"
+  },
+  "u03_etikettenwerk_vat.pdf": {
+    "decision": "INVESTIGATE",
+    "must_find": [
+      "VAT_ERROR"
+    ],
+    "planted": "VAT €185,50 instead of €180,50"
+  },
+  "u04_kistenbau_qty.pdf": {
+    "decision": "INVESTIGATE",
+    "must_find": [
+      "QTY_OVER"
+    ],
+    "planted": "950 crates billed, 800 ordered"
+  },
+  "u05_sirup_price.pdf": {
+    "decision": "INVESTIGATE",
+    "must_find": [
+      "PRICE_DEVIATION"
+    ],
+    "planted": "unit price €63,50 vs ordered €58,00"
+  },
+  "u06_tankservice_iban.pdf": {
+    "decision": "INVESTIGATE",
+    "must_find": [
+      "IBAN_INVALID"
+    ],
+    "planted": "one digit of the IBAN changed"
+  },
+  "u07_etikettenwerk_minze.pdf": {
+    "decision": "INVESTIGATE",
+    "must_find": [
+      "HAS_DUPLICATE"
+    ],
+    "planted": "original of a duplicate (u08)"
+  },
+  "u08_etikettenwerk_minze_dup.pdf": {
+    "decision": "INVESTIGATE",
+    "must_find": [
+      "DUPLICATE"
+    ],
+    "planted": "same invoice number sent again a week later"
+  },
+  "u09_kistenbau_lieferschein.pdf": {
+    "decision": "INVESTIGATE",
+    "must_find": [
+      "NOT_AN_INVOICE"
+    ],
+    "planted": "delivery note"
+  },
+  "u10_weber_no_po.pdf": {
+    "decision": "INVESTIGATE",
+    "must_find": [
+      "NO_PO"
+    ],
+    "planted": "no purchase order"
+  },
+  "u11_sirup_sum.pdf": {
+    "decision": "INVESTIGATE",
+    "must_find": [
+      "MATH_ERROR"
+    ],
+    "planted": "net printed €2.370,00, lines add up to €2.320,00"
+  },
+  "u12_druckpartner_extra.pdf": {
+    "decision": "INVESTIGATE",
+    "must_find": [
+      "ITEMS_NOT_ORDERED"
+    ],
+    "planted": "express surcharge not on the order"
+  },
+  "u13_tankservice_scan.pdf": {
+    "decision": "INVESTIGATE",
+    "must_find": [
+      "NOT_READ"
+    ],
+    "planted": "scan without text layer → needs Claude's reading step"
+  }
+}

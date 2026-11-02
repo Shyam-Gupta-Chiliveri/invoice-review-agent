@@ -1,0 +1,2233 @@
+{
+  "meta": {
+    "run_at": "2026-11-02T18:23:22",
+    "folder": "data",
+    "orders": "data/bestellungen.csv",
+    "documents": 16,
+    "approve": 0,
+    "investigate": 16
+  },
+  "results": [
+    {
+      "decision": "INVESTIGATE",
+      "priority": "HIGH",
+      "summary": "Do not pay: Bank account shared with other vendors (+2 more)",
+      "file": "b01_etikett_soehne_re-4471.pdf",
+      "read_by": "pdf-text",
+      "document": {
+        "source": "pdf-text",
+        "doc_type": "Rechnung",
+        "doc_kind": "invoice",
+        "not_invoice_note": false,
+        "vendor": "Etikett & Söhne GmbH",
+        "city": "Nürnberg",
+        "invoice_number": "RE-4471",
+        "date": "2026-05-18",
+        "po": "QB-10387",
+        "tax_id": "DE 216 445 118",
+        "iban": "DE89370400440532013000",
+        "net": 3230.0,
+        "vat_rate": 19.0,
+        "vat": 613.7,
+        "gross": 3843.7,
+        "reverse_charge": false,
+        "net_only_note": false,
+        "payment_terms": null,
+        "lines": [
+          {
+            "pos": 1,
+            "description": "Rollen-Etikett Klassik Zuckerfrei Apfel 0,5l",
+            "qty": 80000.0,
+            "unit_price": 0.02,
+            "total": 1680.0,
+            "unit_price_raw": "0,02"
+          },
+          {
+            "pos": 2,
+            "description": "Rollen-Etikett Klassik Zuckerfrei Zitrone 0,5l",
+            "qty": 60000.0,
+            "unit_price": 0.02,
+            "total": 1260.0,
+            "unit_price_raw": "0,02"
+          },
+          {
+            "pos": 3,
+            "description": "Druckvorlagen-Setup einmalig",
+            "qty": 2.0,
+            "unit_price": 145.0,
+            "total": 290.0,
+            "unit_price_raw": "145,00"
+          }
+        ],
+        "needs_reading": false,
+        "read_error": null,
+        "po_match": [
+          {
+            "article": "Rollen-Etikett Klassik Zuckerfrei",
+            "po_qty": 140000.0,
+            "po_unit": 0.021,
+            "doc_qty": 140000.0,
+            "doc_unit": 0.021,
+            "lines": [
+              1,
+              2
+            ]
+          }
+        ],
+        "iban_shared_with": [
+          "Brauereibedarf Hartmann GmbH",
+          "Federkiel Design Studio · Lena Vogt",
+          "Fruchtkontor Bodensee GmbH",
+          "Getränkefachgroßhandel Ostbayern",
+          "Hopfen & Etikett Druck GmbH",
+          "Kronkorken Müller KG",
+          "Kräuterhof Allgäu eG",
+          "Maschinenservice Kolb",
+          "Süddeutsche Zucker-Handels GmbH",
+          "Tankreinigung Süddeutschland GmbH"
+        ]
+      },
+      "findings": [
+        {
+          "severity": "ok",
+          "code": "DOC_TYPE",
+          "title": "Document type",
+          "detail": "Rechnung — payable document"
+        },
+        {
+          "severity": "ok",
+          "code": "MANDATORY",
+          "title": "Mandatory fields (§14 UStG)",
+          "detail": "All present"
+        },
+        {
+          "severity": "ok",
+          "code": "MATH",
+          "title": "Line arithmetic",
+          "detail": "3 line(s) recomputed, sum €3.230,00 = net"
+        },
+        {
+          "severity": "ok",
+          "code": "VAT",
+          "title": "VAT",
+          "detail": "€3.230,00 × 19 % = €613,70"
+        },
+        {
+          "severity": "ok",
+          "code": "GROSS",
+          "title": "Gross total",
+          "detail": "€3.843,70"
+        },
+        {
+          "severity": "ok",
+          "code": "PO",
+          "title": "Purchase order",
+          "detail": "QB-10387 — Etikett & Söhne GmbH"
+        },
+        {
+          "severity": "ok",
+          "code": "QTY",
+          "title": "Quantity vs order",
+          "detail": "140.000,00 of 140.000,00 ordered"
+        },
+        {
+          "severity": "ok",
+          "code": "PRICE",
+          "title": "Unit price vs order",
+          "detail": "€0,0210"
+        },
+        {
+          "severity": "review",
+          "code": "ITEMS_NOT_ORDERED",
+          "title": "Items not on the order",
+          "detail": "Pos 3 \"Druckvorlagen-Setup einmalig\" €290,00 — €290,00 not covered by QB-10387"
+        },
+        {
+          "severity": "review",
+          "code": "OVER_PO_VALUE",
+          "title": "Net exceeds order value",
+          "detail": "Order €2.940,00, document €3.230,00 (+€290,00)"
+        },
+        {
+          "severity": "ok",
+          "code": "IBAN",
+          "title": "IBAN checksum",
+          "detail": "ISO 13616 mod-97 valid"
+        },
+        {
+          "severity": "block",
+          "code": "IBAN_SHARED",
+          "title": "Bank account shared with other vendors",
+          "detail": "Same IBAN on documents from 10 other vendor(s): Brauereibedarf Hartmann GmbH, Federkiel Design Studio · Lena Vogt, Fruchtkontor Bodensee GmbH, Getränkefachgroßhandel Ostbayern, Hopfen & Etikett Druck GmbH, Kronkorken Müller KG, Kräuterhof Allgäu eG, Maschinenservice Kolb, Süddeutsche Zucker-Handels GmbH, Tankreinigung Süddeutschland GmbH. Independent suppliers do not share an account — verify by phone before paying."
+        }
+      ]
+    },
+    {
+      "decision": "INVESTIGATE",
+      "priority": "NORMAL",
+      "summary": "Clarify before paying: Items not on the order; Net exceeds order value",
+      "file": "b02_glashuette_weiden_re-2026-559.pdf",
+      "read_by": "pdf-text",
+      "document": {
+        "source": "pdf-text",
+        "doc_type": "Rechnung",
+        "doc_kind": "invoice",
+        "not_invoice_note": false,
+        "vendor": "Glashütte Weiden GmbH",
+        "city": "Weiden i.d.OPf.",
+        "invoice_number": "RE-2026-559",
+        "date": "2026-05-22",
+        "po": "QB-10391",
+        "tax_id": "DE 133 902 551",
+        "iban": "DE12500105170648489890",
+        "net": 21206.4,
+        "vat_rate": 19.0,
+        "vat": 4029.22,
+        "gross": 25235.62,
+        "reverse_charge": false,
+        "net_only_note": false,
+        "payment_terms": null,
+        "lines": [
+          {
+            "pos": 1,
+            "description": "Longneck-Flasche 0,33l klar, Palette",
+            "qty": 96.0,
+            "unit_price": 212.5,
+            "total": 20400.0,
+            "unit_price_raw": "212,50"
+          },
+          {
+            "pos": 2,
+            "description": "Kronkork-kompatibel Muendung, Aufpreis",
+            "qty": 96.0,
+            "unit_price": 8.4,
+            "total": 806.4,
+            "unit_price_raw": "8,40"
+          }
+        ],
+        "needs_reading": false,
+        "read_error": null,
+        "po_match": [
+          {
+            "article": "Longneck-Flasche 0,33l klar (Palette)",
+            "po_qty": 96.0,
+            "po_unit": 212.5,
+            "doc_qty": 96.0,
+            "doc_unit": 212.5,
+            "lines": [
+              1
+            ]
+          }
+        ],
+        "iban_shared_with": []
+      },
+      "findings": [
+        {
+          "severity": "ok",
+          "code": "DOC_TYPE",
+          "title": "Document type",
+          "detail": "Rechnung — payable document"
+        },
+        {
+          "severity": "ok",
+          "code": "MANDATORY",
+          "title": "Mandatory fields (§14 UStG)",
+          "detail": "All present"
+        },
+        {
+          "severity": "ok",
+          "code": "MATH",
+          "title": "Line arithmetic",
+          "detail": "2 line(s) recomputed, sum €21.206,40 = net"
+        },
+        {
+          "severity": "ok",
+          "code": "VAT",
+          "title": "VAT",
+          "detail": "€21.206,40 × 19 % = €4.029,22"
+        },
+        {
+          "severity": "ok",
+          "code": "GROSS",
+          "title": "Gross total",
+          "detail": "€25.235,62"
+        },
+        {
+          "severity": "ok",
+          "code": "PO",
+          "title": "Purchase order",
+          "detail": "QB-10391 — Glashütte Weiden GmbH"
+        },
+        {
+          "severity": "ok",
+          "code": "QTY",
+          "title": "Quantity vs order",
+          "detail": "96,00 of 96,00 ordered"
+        },
+        {
+          "severity": "ok",
+          "code": "PRICE",
+          "title": "Unit price vs order",
+          "detail": "€212,50"
+        },
+        {
+          "severity": "review",
+          "code": "ITEMS_NOT_ORDERED",
+          "title": "Items not on the order",
+          "detail": "Pos 2 \"Kronkork-kompatibel Muendung, Aufpreis\" €806,40 — €806,40 not covered by QB-10391"
+        },
+        {
+          "severity": "review",
+          "code": "OVER_PO_VALUE",
+          "title": "Net exceeds order value",
+          "detail": "Order €20.400,00, document €21.206,40 (+€806,40)"
+        },
+        {
+          "severity": "ok",
+          "code": "IBAN",
+          "title": "IBAN checksum",
+          "detail": "ISO 13616 mod-97 valid"
+        }
+      ]
+    },
+    {
+      "decision": "INVESTIGATE",
+      "priority": "HIGH",
+      "summary": "Do not pay: Arithmetic error; Bank account shared with other vendors (+1 more)",
+      "file": "b03_sued_zucker_re-8841.pdf",
+      "read_by": "pdf-text",
+      "document": {
+        "source": "pdf-text",
+        "doc_type": "Rechnung",
+        "doc_kind": "invoice",
+        "not_invoice_note": false,
+        "vendor": "Süddeutsche Zucker-Handels GmbH",
+        "city": "Ochsenfurt",
+        "invoice_number": "RE-8841",
+        "date": "2026-06-24",
+        "po": "QB-10412",
+        "tax_id": "DE 189 447 203",
+        "iban": "DE89370400440532013000",
+        "net": 8371.98,
+        "vat_rate": 7.0,
+        "vat": 586.04,
+        "gross": 8958.02,
+        "reverse_charge": false,
+        "net_only_note": false,
+        "payment_terms": null,
+        "lines": [
+          {
+            "pos": 1,
+            "description": "Bio-Rohrzucker 25kg Sack",
+            "qty": 48.0,
+            "unit_price": 41.17,
+            "total": 1976.16,
+            "unit_price_raw": "41,17"
+          },
+          {
+            "pos": 2,
+            "description": "Bio-Rohrzucker 10kg Sack",
+            "qty": 30.0,
+            "unit_price": 17.83,
+            "total": 534.9,
+            "unit_price_raw": "17,83"
+          },
+          {
+            "pos": 3,
+            "description": "Rohrohrzucker fein 25kg",
+            "qty": 22.0,
+            "unit_price": 39.94,
+            "total": 878.68,
+            "unit_price_raw": "39,94"
+          },
+          {
+            "pos": 4,
+            "description": "Puderzucker Bio 5kg",
+            "qty": 18.0,
+            "unit_price": 9.61,
+            "total": 172.98,
+            "unit_price_raw": "9,61"
+          },
+          {
+            "pos": 5,
+            "description": "Invertzuckersirup 20kg Kanister",
+            "qty": 12.0,
+            "unit_price": 33.28,
+            "total": 399.36,
+            "unit_price_raw": "33,28"
+          },
+          {
+            "pos": 6,
+            "description": "Traubenzucker 10kg",
+            "qty": 9.0,
+            "unit_price": 14.77,
+            "total": 132.93,
+            "unit_price_raw": "14,77"
+          },
+          {
+            "pos": 7,
+            "description": "Karamellsirup 5l",
+            "qty": 14.0,
+            "unit_price": 22.19,
+            "total": 310.66,
+            "unit_price_raw": "22,19"
+          },
+          {
+            "pos": 8,
+            "description": "Bio-Rohrzucker 25kg Sack (Charge B)",
+            "qty": 16.0,
+            "unit_price": 41.03,
+            "total": 656.48,
+            "unit_price_raw": "41,03"
+          },
+          {
+            "pos": 9,
+            "description": "Melasse 20kg Eimer",
+            "qty": 7.0,
+            "unit_price": 28.55,
+            "total": 199.85,
+            "unit_price_raw": "28,55"
+          },
+          {
+            "pos": 10,
+            "description": "Fruktose kristallin 10kg",
+            "qty": 11.0,
+            "unit_price": 19.66,
+            "total": 216.26,
+            "unit_price_raw": "19,66"
+          },
+          {
+            "pos": 11,
+            "description": "Zuckercouleur E150a 5l",
+            "qty": 6.0,
+            "unit_price": 41.9,
+            "total": 251.4,
+            "unit_price_raw": "41,90"
+          },
+          {
+            "pos": 12,
+            "description": "Bio-Puderzucker 10kg",
+            "qty": 8.0,
+            "unit_price": 18.42,
+            "total": 147.36,
+            "unit_price_raw": "18,42"
+          },
+          {
+            "pos": 13,
+            "description": "Dextrose Monohydrat 25kg",
+            "qty": 5.0,
+            "unit_price": 37.11,
+            "total": 185.55,
+            "unit_price_raw": "37,11"
+          },
+          {
+            "pos": 14,
+            "description": "Sirup-Grundstock neutral 20l",
+            "qty": 10.0,
+            "unit_price": 24.88,
+            "total": 248.8,
+            "unit_price_raw": "24,88"
+          },
+          {
+            "pos": 15,
+            "description": "Bio-Rohrzucker 1kg Beutel VE12",
+            "qty": 20.0,
+            "unit_price": 21.14,
+            "total": 422.8,
+            "unit_price_raw": "21,14"
+          },
+          {
+            "pos": 16,
+            "description": "Kandiszucker braun 5kg",
+            "qty": 13.0,
+            "unit_price": 12.73,
+            "total": 165.49,
+            "unit_price_raw": "12,73"
+          },
+          {
+            "pos": 17,
+            "description": "Zuckerersatz Erythrit 10kg",
+            "qty": 4.0,
+            "unit_price": 58.29,
+            "total": 233.16,
+            "unit_price_raw": "58,29"
+          },
+          {
+            "pos": 18,
+            "description": "Bio-Vollrohrzucker 25kg",
+            "qty": 9.0,
+            "unit_price": 43.61,
+            "total": 392.49,
+            "unit_price_raw": "43,61"
+          },
+          {
+            "pos": 19,
+            "description": "Glukosesirup DE38 25kg",
+            "qty": 6.0,
+            "unit_price": 31.47,
+            "total": 188.82,
+            "unit_price_raw": "31,47"
+          },
+          {
+            "pos": 20,
+            "description": "Ahornsirup Grade A 5l",
+            "qty": 3.0,
+            "unit_price": 62.08,
+            "total": 186.24,
+            "unit_price_raw": "62,08"
+          },
+          {
+            "pos": 21,
+            "description": "Reissirup Bio 20kg",
+            "qty": 5.0,
+            "unit_price": 44.9,
+            "total": 224.5,
+            "unit_price_raw": "44,90"
+          },
+          {
+            "pos": 22,
+            "description": "Agavendicksaft 10kg",
+            "qty": 7.0,
+            "unit_price": 33.52,
+            "total": 234.64,
+            "unit_price_raw": "33,52"
+          }
+        ],
+        "needs_reading": false,
+        "read_error": null,
+        "po_match": [
+          {
+            "article": "Bio-Rohrzucker Sammelbestellung",
+            "po_qty": 1.0,
+            "po_unit": 0.0,
+            "doc_qty": 114.0,
+            "doc_unit": 31.49421052631579,
+            "lines": [
+              1,
+              2,
+              8,
+              15
+            ]
+          }
+        ],
+        "iban_shared_with": [
+          "Brauereibedarf Hartmann GmbH",
+          "Etikett & Söhne GmbH",
+          "Federkiel Design Studio · Lena Vogt",
+          "Fruchtkontor Bodensee GmbH",
+          "Getränkefachgroßhandel Ostbayern",
+          "Hopfen & Etikett Druck GmbH",
+          "Kronkorken Müller KG",
+          "Kräuterhof Allgäu eG",
+          "Maschinenservice Kolb",
+          "Tankreinigung Süddeutschland GmbH"
+        ]
+      },
+      "findings": [
+        {
+          "severity": "ok",
+          "code": "DOC_TYPE",
+          "title": "Document type",
+          "detail": "Rechnung — payable document"
+        },
+        {
+          "severity": "ok",
+          "code": "MANDATORY",
+          "title": "Mandatory fields (§14 UStG)",
+          "detail": "All present"
+        },
+        {
+          "severity": "block",
+          "code": "MATH_ERROR",
+          "title": "Arithmetic error",
+          "detail": "lines add up to €8.359,51, document states net €8.371,98 (Δ €12,47)"
+        },
+        {
+          "severity": "ok",
+          "code": "VAT",
+          "title": "VAT",
+          "detail": "€8.371,98 × 7 % = €586,04"
+        },
+        {
+          "severity": "ok",
+          "code": "GROSS",
+          "title": "Gross total",
+          "detail": "€8.958,02"
+        },
+        {
+          "severity": "ok",
+          "code": "PO",
+          "title": "Purchase order",
+          "detail": "QB-10412 — Süddeutsche Zucker-Handels GmbH"
+        },
+        {
+          "severity": "review",
+          "code": "PO_NO_VALUE",
+          "title": "Order has no approved value",
+          "detail": "QB-10412 (\"Bio-Rohrzucker Sammelbestellung\") is a framework order at €0,00 — net €8.371,98 over 22 items has no budget approval."
+        },
+        {
+          "severity": "ok",
+          "code": "IBAN",
+          "title": "IBAN checksum",
+          "detail": "ISO 13616 mod-97 valid"
+        },
+        {
+          "severity": "block",
+          "code": "IBAN_SHARED",
+          "title": "Bank account shared with other vendors",
+          "detail": "Same IBAN on documents from 10 other vendor(s): Brauereibedarf Hartmann GmbH, Etikett & Söhne GmbH, Federkiel Design Studio · Lena Vogt, Fruchtkontor Bodensee GmbH, Getränkefachgroßhandel Ostbayern, Hopfen & Etikett Druck GmbH, Kronkorken Müller KG, Kräuterhof Allgäu eG, Maschinenservice Kolb, Tankreinigung Süddeutschland GmbH. Independent suppliers do not share an account — verify by phone before paying."
+        }
+      ]
+    },
+    {
+      "decision": "INVESTIGATE",
+      "priority": "HIGH",
+      "summary": "Do not pay: VAT miscalculated; Bank account shared with other vendors (+1 more)",
+      "file": "b04_kraeuterhof_allgaeu_re-2026-0331.pdf",
+      "read_by": "pdf-text",
+      "document": {
+        "source": "pdf-text",
+        "doc_type": "Rechnung",
+        "doc_kind": "invoice",
+        "not_invoice_note": false,
+        "vendor": "Kräuterhof Allgäu eG",
+        "city": "Kempten",
+        "invoice_number": "RE-2026-0331",
+        "date": "2026-06-11",
+        "po": null,
+        "tax_id": "DE 205 118 662",
+        "iban": "DE89370400440532013000",
+        "net": 4294.8,
+        "vat_rate": 7.0,
+        "vat": 296.43,
+        "gross": 4591.23,
+        "reverse_charge": false,
+        "net_only_note": false,
+        "payment_terms": null,
+        "lines": [
+          {
+            "pos": 1,
+            "description": "Melissenextrakt Bio 5l Kanister",
+            "qty": 24.0,
+            "unit_price": 88.5,
+            "total": 2124.0,
+            "unit_price_raw": "88,50"
+          },
+          {
+            "pos": 2,
+            "description": "Zitronenmelisse-Aroma natürlich 1l",
+            "qty": 40.0,
+            "unit_price": 31.2,
+            "total": 1248.0,
+            "unit_price_raw": "31,20"
+          },
+          {
+            "pos": 3,
+            "description": "Kräuterauszug Salbei-Thymian 5l",
+            "qty": 12.0,
+            "unit_price": 76.9,
+            "total": 922.8,
+            "unit_price_raw": "76,90"
+          }
+        ],
+        "needs_reading": false,
+        "read_error": null,
+        "po_match": null,
+        "iban_shared_with": [
+          "Brauereibedarf Hartmann GmbH",
+          "Etikett & Söhne GmbH",
+          "Federkiel Design Studio · Lena Vogt",
+          "Fruchtkontor Bodensee GmbH",
+          "Getränkefachgroßhandel Ostbayern",
+          "Hopfen & Etikett Druck GmbH",
+          "Kronkorken Müller KG",
+          "Maschinenservice Kolb",
+          "Süddeutsche Zucker-Handels GmbH",
+          "Tankreinigung Süddeutschland GmbH"
+        ]
+      },
+      "findings": [
+        {
+          "severity": "ok",
+          "code": "DOC_TYPE",
+          "title": "Document type",
+          "detail": "Rechnung — payable document"
+        },
+        {
+          "severity": "ok",
+          "code": "MANDATORY",
+          "title": "Mandatory fields (§14 UStG)",
+          "detail": "All present"
+        },
+        {
+          "severity": "ok",
+          "code": "MATH",
+          "title": "Line arithmetic",
+          "detail": "3 line(s) recomputed, sum €4.294,80 = net"
+        },
+        {
+          "severity": "block",
+          "code": "VAT_ERROR",
+          "title": "VAT miscalculated",
+          "detail": "€4.294,80 × 7 % = €300,64, document states €296,43 (Δ €-4,21)"
+        },
+        {
+          "severity": "ok",
+          "code": "GROSS",
+          "title": "Gross total",
+          "detail": "€4.591,23"
+        },
+        {
+          "severity": "review",
+          "code": "NO_PO",
+          "title": "No purchase order",
+          "detail": "No order number on the document; vendor has no open order in bestellungen.csv. Needs approval by the budget owner."
+        },
+        {
+          "severity": "ok",
+          "code": "IBAN",
+          "title": "IBAN checksum",
+          "detail": "ISO 13616 mod-97 valid"
+        },
+        {
+          "severity": "block",
+          "code": "IBAN_SHARED",
+          "title": "Bank account shared with other vendors",
+          "detail": "Same IBAN on documents from 10 other vendor(s): Brauereibedarf Hartmann GmbH, Etikett & Söhne GmbH, Federkiel Design Studio · Lena Vogt, Fruchtkontor Bodensee GmbH, Getränkefachgroßhandel Ostbayern, Hopfen & Etikett Druck GmbH, Kronkorken Müller KG, Maschinenservice Kolb, Süddeutsche Zucker-Handels GmbH, Tankreinigung Süddeutschland GmbH. Independent suppliers do not share an account — verify by phone before paying."
+        }
+      ]
+    },
+    {
+      "decision": "INVESTIGATE",
+      "priority": "HIGH",
+      "summary": "Do not pay: IBAN is not a valid account (+1 more)",
+      "file": "b05_brenner_logistik_re-fr-11029.pdf",
+      "read_by": "pdf-text",
+      "document": {
+        "source": "pdf-text",
+        "doc_type": "Rechnung",
+        "doc_kind": "invoice",
+        "not_invoice_note": false,
+        "vendor": "Brenner Logistik GmbH",
+        "city": "Regensburg",
+        "invoice_number": "FR-11029",
+        "date": "2026-06-28",
+        "po": null,
+        "tax_id": "DE 177 330 914",
+        "iban": "DE89370400940532013000",
+        "net": 1490.0,
+        "vat_rate": 19.0,
+        "vat": 283.1,
+        "gross": 1773.1,
+        "reverse_charge": false,
+        "net_only_note": false,
+        "payment_terms": null,
+        "lines": [
+          {
+            "pos": 1,
+            "description": "Palettenversand Edeka Südbayern (ZL), 18 Paletten",
+            "qty": 18.0,
+            "unit_price": 64.5,
+            "total": 1161.0,
+            "unit_price_raw": "64,50"
+          },
+          {
+            "pos": 2,
+            "description": "Mautpauschale",
+            "qty": 1.0,
+            "unit_price": 212.0,
+            "total": 212.0,
+            "unit_price_raw": "212,00"
+          },
+          {
+            "pos": 3,
+            "description": "Ladungssicherung",
+            "qty": 18.0,
+            "unit_price": 6.5,
+            "total": 117.0,
+            "unit_price_raw": "6,50"
+          }
+        ],
+        "needs_reading": false,
+        "read_error": null,
+        "po_match": null,
+        "iban_shared_with": []
+      },
+      "findings": [
+        {
+          "severity": "ok",
+          "code": "DOC_TYPE",
+          "title": "Document type",
+          "detail": "Rechnung — payable document"
+        },
+        {
+          "severity": "ok",
+          "code": "MANDATORY",
+          "title": "Mandatory fields (§14 UStG)",
+          "detail": "All present"
+        },
+        {
+          "severity": "ok",
+          "code": "MATH",
+          "title": "Line arithmetic",
+          "detail": "3 line(s) recomputed, sum €1.490,00 = net"
+        },
+        {
+          "severity": "ok",
+          "code": "VAT",
+          "title": "VAT",
+          "detail": "€1.490,00 × 19 % = €283,10"
+        },
+        {
+          "severity": "ok",
+          "code": "GROSS",
+          "title": "Gross total",
+          "detail": "€1.773,10"
+        },
+        {
+          "severity": "review",
+          "code": "NO_PO",
+          "title": "No purchase order",
+          "detail": "No order number on the document; vendor has no open order in bestellungen.csv. Needs approval by the budget owner."
+        },
+        {
+          "severity": "block",
+          "code": "IBAN_INVALID",
+          "title": "IBAN is not a valid account",
+          "detail": "DE89370400940532013000 — mod-97 checksum fails: tampered or mistyped."
+        }
+      ]
+    },
+    {
+      "decision": "INVESTIGATE",
+      "priority": "HIGH",
+      "summary": "Do not pay: Bank account shared with other vendors (+3 more)",
+      "file": "b06_kolb_re-2026-0447.pdf",
+      "read_by": "pdf-text",
+      "document": {
+        "source": "pdf-text",
+        "doc_type": "Rechnung",
+        "doc_kind": "invoice",
+        "not_invoice_note": false,
+        "vendor": "Maschinenservice Kolb",
+        "city": "Landshut",
+        "invoice_number": "RE-2026-0447",
+        "date": "2026-06-15",
+        "po": "QB-10402",
+        "tax_id": "DE 198 220 471",
+        "iban": "DE89370400440532013000",
+        "net": 2515.0,
+        "vat_rate": 19.0,
+        "vat": 477.85,
+        "gross": 2992.85,
+        "reverse_charge": false,
+        "net_only_note": false,
+        "payment_terms": null,
+        "lines": [
+          {
+            "pos": 1,
+            "description": "Wartung Abfüllanlage AF-3, Jahresinspektion",
+            "qty": 1.0,
+            "unit_price": 1850.0,
+            "total": 1850.0,
+            "unit_price_raw": "1.850,00"
+          },
+          {
+            "pos": 2,
+            "description": "Ersatz Dichtungssatz Füllventil",
+            "qty": 6.0,
+            "unit_price": 47.5,
+            "total": 285.0,
+            "unit_price_raw": "47,50"
+          },
+          {
+            "pos": 3,
+            "description": "Anfahrt/Techniker 4h",
+            "qty": 4.0,
+            "unit_price": 95.0,
+            "total": 380.0,
+            "unit_price_raw": "95,00"
+          }
+        ],
+        "needs_reading": false,
+        "read_error": null,
+        "po_match": [
+          {
+            "article": "Jahreswartung Abfüllanlage AF-3",
+            "po_qty": 1.0,
+            "po_unit": 1850.0,
+            "doc_qty": 1.0,
+            "doc_unit": 1850.0,
+            "lines": [
+              1
+            ]
+          }
+        ],
+        "iban_shared_with": [
+          "Brauereibedarf Hartmann GmbH",
+          "Etikett & Söhne GmbH",
+          "Federkiel Design Studio · Lena Vogt",
+          "Fruchtkontor Bodensee GmbH",
+          "Getränkefachgroßhandel Ostbayern",
+          "Hopfen & Etikett Druck GmbH",
+          "Kronkorken Müller KG",
+          "Kräuterhof Allgäu eG",
+          "Süddeutsche Zucker-Handels GmbH",
+          "Tankreinigung Süddeutschland GmbH"
+        ]
+      },
+      "findings": [
+        {
+          "severity": "ok",
+          "code": "DOC_TYPE",
+          "title": "Document type",
+          "detail": "Rechnung — payable document"
+        },
+        {
+          "severity": "ok",
+          "code": "MANDATORY",
+          "title": "Mandatory fields (§14 UStG)",
+          "detail": "All present"
+        },
+        {
+          "severity": "ok",
+          "code": "MATH",
+          "title": "Line arithmetic",
+          "detail": "3 line(s) recomputed, sum €2.515,00 = net"
+        },
+        {
+          "severity": "ok",
+          "code": "VAT",
+          "title": "VAT",
+          "detail": "€2.515,00 × 19 % = €477,85"
+        },
+        {
+          "severity": "ok",
+          "code": "GROSS",
+          "title": "Gross total",
+          "detail": "€2.992,85"
+        },
+        {
+          "severity": "ok",
+          "code": "PO",
+          "title": "Purchase order",
+          "detail": "QB-10402 — Maschinenservice Kolb"
+        },
+        {
+          "severity": "ok",
+          "code": "QTY",
+          "title": "Quantity vs order",
+          "detail": "1,00 of 1,00 ordered"
+        },
+        {
+          "severity": "ok",
+          "code": "PRICE",
+          "title": "Unit price vs order",
+          "detail": "€1.850,00"
+        },
+        {
+          "severity": "review",
+          "code": "ITEMS_NOT_ORDERED",
+          "title": "Items not on the order",
+          "detail": "Pos 2 \"Ersatz Dichtungssatz Füllventil\" €285,00; Pos 3 \"Anfahrt/Techniker 4h\" €380,00 — €665,00 not covered by QB-10402"
+        },
+        {
+          "severity": "review",
+          "code": "OVER_PO_VALUE",
+          "title": "Net exceeds order value",
+          "detail": "Order €1.850,00, document €2.515,00 (+€665,00)"
+        },
+        {
+          "severity": "ok",
+          "code": "IBAN",
+          "title": "IBAN checksum",
+          "detail": "ISO 13616 mod-97 valid"
+        },
+        {
+          "severity": "block",
+          "code": "IBAN_SHARED",
+          "title": "Bank account shared with other vendors",
+          "detail": "Same IBAN on documents from 10 other vendor(s): Brauereibedarf Hartmann GmbH, Etikett & Söhne GmbH, Federkiel Design Studio · Lena Vogt, Fruchtkontor Bodensee GmbH, Getränkefachgroßhandel Ostbayern, Hopfen & Etikett Druck GmbH, Kronkorken Müller KG, Kräuterhof Allgäu eG, Süddeutsche Zucker-Handels GmbH, Tankreinigung Süddeutschland GmbH. Independent suppliers do not share an account — verify by phone before paying."
+        },
+        {
+          "severity": "review",
+          "code": "HAS_DUPLICATE",
+          "title": "A later duplicate exists",
+          "detail": "RE-2026-0489 (b10_kolb_re-2026-0489.pdf) repeats this invoice — pay once."
+        }
+      ]
+    },
+    {
+      "decision": "INVESTIGATE",
+      "priority": "HIGH",
+      "summary": "Do not pay: Bank account shared with other vendors (+2 more)",
+      "file": "b07_kronkorken_mueller_re-5567.pdf",
+      "read_by": "pdf-text",
+      "document": {
+        "source": "pdf-text",
+        "doc_type": "Rechnung",
+        "doc_kind": "invoice",
+        "not_invoice_note": false,
+        "vendor": "Kronkorken Müller KG",
+        "city": "Fürth",
+        "invoice_number": "RE-5567",
+        "date": "2026-06-19",
+        "po": "QB-10405",
+        "tax_id": "DE 144 887 320",
+        "iban": "DE89370400440532013000",
+        "net": 4550.0,
+        "vat_rate": 19.0,
+        "vat": 864.5,
+        "gross": 5414.5,
+        "reverse_charge": false,
+        "net_only_note": false,
+        "payment_terms": null,
+        "lines": [
+          {
+            "pos": 1,
+            "description": "Kronkorken gold, bedruckt Quellberg, 250.000 Stk",
+            "qty": 250000.0,
+            "unit_price": 0.02,
+            "total": 4550.0,
+            "unit_price_raw": "0,02"
+          }
+        ],
+        "needs_reading": false,
+        "read_error": null,
+        "po_match": [
+          {
+            "article": "Kronkorken gold bedruckt",
+            "po_qty": 200000.0,
+            "po_unit": 0.0182,
+            "doc_qty": 250000.0,
+            "doc_unit": 0.0182,
+            "lines": [
+              1
+            ]
+          }
+        ],
+        "iban_shared_with": [
+          "Brauereibedarf Hartmann GmbH",
+          "Etikett & Söhne GmbH",
+          "Federkiel Design Studio · Lena Vogt",
+          "Fruchtkontor Bodensee GmbH",
+          "Getränkefachgroßhandel Ostbayern",
+          "Hopfen & Etikett Druck GmbH",
+          "Kräuterhof Allgäu eG",
+          "Maschinenservice Kolb",
+          "Süddeutsche Zucker-Handels GmbH",
+          "Tankreinigung Süddeutschland GmbH"
+        ]
+      },
+      "findings": [
+        {
+          "severity": "ok",
+          "code": "DOC_TYPE",
+          "title": "Document type",
+          "detail": "Rechnung — payable document"
+        },
+        {
+          "severity": "ok",
+          "code": "MANDATORY",
+          "title": "Mandatory fields (§14 UStG)",
+          "detail": "All present"
+        },
+        {
+          "severity": "ok",
+          "code": "MATH",
+          "title": "Line arithmetic",
+          "detail": "1 line(s) recomputed, sum €4.550,00 = net"
+        },
+        {
+          "severity": "ok",
+          "code": "VAT",
+          "title": "VAT",
+          "detail": "€4.550,00 × 19 % = €864,50"
+        },
+        {
+          "severity": "ok",
+          "code": "GROSS",
+          "title": "Gross total",
+          "detail": "€5.414,50"
+        },
+        {
+          "severity": "ok",
+          "code": "PO",
+          "title": "Purchase order",
+          "detail": "QB-10405 — Kronkorken Müller KG"
+        },
+        {
+          "severity": "review",
+          "code": "QTY_OVER",
+          "title": "More delivered/billed than ordered",
+          "detail": "Ordered 200.000,00, document 250.000,00 (+50.000,00, ≈ +€910,00)"
+        },
+        {
+          "severity": "ok",
+          "code": "PRICE",
+          "title": "Unit price vs order",
+          "detail": "€0,0182"
+        },
+        {
+          "severity": "review",
+          "code": "OVER_PO_VALUE",
+          "title": "Net exceeds order value",
+          "detail": "Order €3.640,00, document €4.550,00 (+€910,00)"
+        },
+        {
+          "severity": "ok",
+          "code": "IBAN",
+          "title": "IBAN checksum",
+          "detail": "ISO 13616 mod-97 valid"
+        },
+        {
+          "severity": "block",
+          "code": "IBAN_SHARED",
+          "title": "Bank account shared with other vendors",
+          "detail": "Same IBAN on documents from 10 other vendor(s): Brauereibedarf Hartmann GmbH, Etikett & Söhne GmbH, Federkiel Design Studio · Lena Vogt, Fruchtkontor Bodensee GmbH, Getränkefachgroßhandel Ostbayern, Hopfen & Etikett Druck GmbH, Kräuterhof Allgäu eG, Maschinenservice Kolb, Süddeutsche Zucker-Handels GmbH, Tankreinigung Süddeutschland GmbH. Independent suppliers do not share an account — verify by phone before paying."
+        }
+      ]
+    },
+    {
+      "decision": "INVESTIGATE",
+      "priority": "HIGH",
+      "summary": "Do not pay: Bank account shared with other vendors (+1 more)",
+      "file": "b08_getraenke_ostbayern_re-2026-771.jpg",
+      "read_by": "vision:b08_getraenke_ostbayern_re-2026-771.jpg.json",
+      "document": {
+        "source": "vision:b08_getraenke_ostbayern_re-2026-771.jpg.json",
+        "doc_type": "Rechnung",
+        "doc_kind": "invoice",
+        "not_invoice_note": false,
+        "vendor": "Getränkefachgroßhandel Ostbayern",
+        "city": "Passau",
+        "invoice_number": "RE-2026-771",
+        "date": "2026-06-21",
+        "po": null,
+        "tax_id": "DE 211 556 043",
+        "iban": "DE89370400440532013000",
+        "net": 1074.0,
+        "vat_rate": 19.0,
+        "vat": 204.06,
+        "gross": 1278.06,
+        "reverse_charge": false,
+        "net_only_note": false,
+        "payment_terms": null,
+        "lines": [
+          {
+            "pos": 1,
+            "description": "Leergut-Kiste 24x0,33l, Rücknahme-Ausgleich",
+            "qty": 120.0,
+            "unit_price": 4.5,
+            "total": 540.0,
+            "unit_price_raw": null
+          },
+          {
+            "pos": 2,
+            "description": "Getränkekiste Kunststoff neu",
+            "qty": 60.0,
+            "unit_price": 8.9,
+            "total": 534.0,
+            "unit_price_raw": null
+          }
+        ],
+        "needs_reading": false,
+        "read_error": null,
+        "po_match": null,
+        "iban_shared_with": [
+          "Brauereibedarf Hartmann GmbH",
+          "Etikett & Söhne GmbH",
+          "Federkiel Design Studio · Lena Vogt",
+          "Fruchtkontor Bodensee GmbH",
+          "Hopfen & Etikett Druck GmbH",
+          "Kronkorken Müller KG",
+          "Kräuterhof Allgäu eG",
+          "Maschinenservice Kolb",
+          "Süddeutsche Zucker-Handels GmbH",
+          "Tankreinigung Süddeutschland GmbH"
+        ]
+      },
+      "findings": [
+        {
+          "severity": "ok",
+          "code": "DOC_TYPE",
+          "title": "Document type",
+          "detail": "Rechnung — payable document"
+        },
+        {
+          "severity": "ok",
+          "code": "MANDATORY",
+          "title": "Mandatory fields (§14 UStG)",
+          "detail": "All present"
+        },
+        {
+          "severity": "ok",
+          "code": "MATH",
+          "title": "Line arithmetic",
+          "detail": "2 line(s) recomputed, sum €1.074,00 = net"
+        },
+        {
+          "severity": "ok",
+          "code": "VAT",
+          "title": "VAT",
+          "detail": "€1.074,00 × 19 % = €204,06"
+        },
+        {
+          "severity": "ok",
+          "code": "GROSS",
+          "title": "Gross total",
+          "detail": "€1.278,06"
+        },
+        {
+          "severity": "review",
+          "code": "NO_PO",
+          "title": "No purchase order",
+          "detail": "No order number on the document; vendor has no open order in bestellungen.csv. Needs approval by the budget owner."
+        },
+        {
+          "severity": "ok",
+          "code": "IBAN",
+          "title": "IBAN checksum",
+          "detail": "ISO 13616 mod-97 valid"
+        },
+        {
+          "severity": "block",
+          "code": "IBAN_SHARED",
+          "title": "Bank account shared with other vendors",
+          "detail": "Same IBAN on documents from 10 other vendor(s): Brauereibedarf Hartmann GmbH, Etikett & Söhne GmbH, Federkiel Design Studio · Lena Vogt, Fruchtkontor Bodensee GmbH, Hopfen & Etikett Druck GmbH, Kronkorken Müller KG, Kräuterhof Allgäu eG, Maschinenservice Kolb, Süddeutsche Zucker-Handels GmbH, Tankreinigung Süddeutschland GmbH. Independent suppliers do not share an account — verify by phone before paying."
+        }
+      ]
+    },
+    {
+      "decision": "INVESTIGATE",
+      "priority": "HIGH",
+      "summary": "Do not pay: Bank account shared with other vendors (+2 more)",
+      "file": "b09_federkiel_design_re-2026-14.pdf",
+      "read_by": "pdf-text",
+      "document": {
+        "source": "pdf-text",
+        "doc_type": "Rechnung",
+        "doc_kind": "invoice",
+        "not_invoice_note": false,
+        "vendor": "Federkiel Design Studio · Lena Vogt",
+        "city": "Augsburg",
+        "invoice_number": "2026-14",
+        "date": "2026-06-05",
+        "po": null,
+        "tax_id": null,
+        "iban": "DE89370400440532013000",
+        "net": 2760.0,
+        "vat_rate": 19.0,
+        "vat": 524.4,
+        "gross": 3284.4,
+        "reverse_charge": false,
+        "net_only_note": false,
+        "payment_terms": null,
+        "lines": [
+          {
+            "pos": 1,
+            "description": "Etiketten-Redesign WACH Mate, Konzept + Reinzeichnung",
+            "qty": 1.0,
+            "unit_price": 2400.0,
+            "total": 2400.0,
+            "unit_price_raw": "2.400,00"
+          },
+          {
+            "pos": 2,
+            "description": "Korrekturschleife (2 Runden)",
+            "qty": 2.0,
+            "unit_price": 180.0,
+            "total": 360.0,
+            "unit_price_raw": "180,00"
+          }
+        ],
+        "needs_reading": false,
+        "read_error": null,
+        "po_match": null,
+        "iban_shared_with": [
+          "Brauereibedarf Hartmann GmbH",
+          "Etikett & Söhne GmbH",
+          "Fruchtkontor Bodensee GmbH",
+          "Getränkefachgroßhandel Ostbayern",
+          "Hopfen & Etikett Druck GmbH",
+          "Kronkorken Müller KG",
+          "Kräuterhof Allgäu eG",
+          "Maschinenservice Kolb",
+          "Süddeutsche Zucker-Handels GmbH",
+          "Tankreinigung Süddeutschland GmbH"
+        ]
+      },
+      "findings": [
+        {
+          "severity": "ok",
+          "code": "DOC_TYPE",
+          "title": "Document type",
+          "detail": "Rechnung — payable document"
+        },
+        {
+          "severity": "review",
+          "code": "MISSING_FIELDS",
+          "title": "Mandatory fields missing (§14 UStG)",
+          "detail": "Missing: tax no. / VAT ID"
+        },
+        {
+          "severity": "ok",
+          "code": "MATH",
+          "title": "Line arithmetic",
+          "detail": "2 line(s) recomputed, sum €2.760,00 = net"
+        },
+        {
+          "severity": "ok",
+          "code": "VAT",
+          "title": "VAT",
+          "detail": "€2.760,00 × 19 % = €524,40"
+        },
+        {
+          "severity": "ok",
+          "code": "GROSS",
+          "title": "Gross total",
+          "detail": "€3.284,40"
+        },
+        {
+          "severity": "review",
+          "code": "NO_PO",
+          "title": "No purchase order",
+          "detail": "No order number on the document; vendor has no open order in bestellungen.csv. Needs approval by the budget owner."
+        },
+        {
+          "severity": "ok",
+          "code": "IBAN",
+          "title": "IBAN checksum",
+          "detail": "ISO 13616 mod-97 valid"
+        },
+        {
+          "severity": "block",
+          "code": "IBAN_SHARED",
+          "title": "Bank account shared with other vendors",
+          "detail": "Same IBAN on documents from 10 other vendor(s): Brauereibedarf Hartmann GmbH, Etikett & Söhne GmbH, Fruchtkontor Bodensee GmbH, Getränkefachgroßhandel Ostbayern, Hopfen & Etikett Druck GmbH, Kronkorken Müller KG, Kräuterhof Allgäu eG, Maschinenservice Kolb, Süddeutsche Zucker-Handels GmbH, Tankreinigung Süddeutschland GmbH. Independent suppliers do not share an account — verify by phone before paying."
+        }
+      ]
+    },
+    {
+      "decision": "INVESTIGATE",
+      "priority": "HIGH",
+      "summary": "Do not pay: Bank account shared with other vendors; Duplicate invoice (+2 more)",
+      "file": "b10_kolb_re-2026-0489.pdf",
+      "read_by": "pdf-text",
+      "document": {
+        "source": "pdf-text",
+        "doc_type": "Rechnung",
+        "doc_kind": "invoice",
+        "not_invoice_note": false,
+        "vendor": "Maschinenservice Kolb",
+        "city": "Landshut",
+        "invoice_number": "RE-2026-0489",
+        "date": "2026-06-27",
+        "po": "QB-10402",
+        "tax_id": "DE 198 220 471",
+        "iban": "DE89370400440532013000",
+        "net": 2515.0,
+        "vat_rate": 19.0,
+        "vat": 477.85,
+        "gross": 2992.85,
+        "reverse_charge": false,
+        "net_only_note": false,
+        "payment_terms": null,
+        "lines": [
+          {
+            "pos": 1,
+            "description": "Jahresinspektion Abfüllanlage AF-3",
+            "qty": 1.0,
+            "unit_price": 1850.0,
+            "total": 1850.0,
+            "unit_price_raw": "1.850,00"
+          },
+          {
+            "pos": 2,
+            "description": "Dichtungssatz Füllventil (6 Stk)",
+            "qty": 6.0,
+            "unit_price": 47.5,
+            "total": 285.0,
+            "unit_price_raw": "47,50"
+          },
+          {
+            "pos": 3,
+            "description": "Technikereinsatz Anfahrt 4h",
+            "qty": 4.0,
+            "unit_price": 95.0,
+            "total": 380.0,
+            "unit_price_raw": "95,00"
+          }
+        ],
+        "needs_reading": false,
+        "read_error": null,
+        "po_match": [
+          {
+            "article": "Jahreswartung Abfüllanlage AF-3",
+            "po_qty": 1.0,
+            "po_unit": 1850.0,
+            "doc_qty": 1.0,
+            "doc_unit": 1850.0,
+            "lines": [
+              1
+            ]
+          }
+        ],
+        "iban_shared_with": [
+          "Brauereibedarf Hartmann GmbH",
+          "Etikett & Söhne GmbH",
+          "Federkiel Design Studio · Lena Vogt",
+          "Fruchtkontor Bodensee GmbH",
+          "Getränkefachgroßhandel Ostbayern",
+          "Hopfen & Etikett Druck GmbH",
+          "Kronkorken Müller KG",
+          "Kräuterhof Allgäu eG",
+          "Süddeutsche Zucker-Handels GmbH",
+          "Tankreinigung Süddeutschland GmbH"
+        ]
+      },
+      "findings": [
+        {
+          "severity": "ok",
+          "code": "DOC_TYPE",
+          "title": "Document type",
+          "detail": "Rechnung — payable document"
+        },
+        {
+          "severity": "ok",
+          "code": "MANDATORY",
+          "title": "Mandatory fields (§14 UStG)",
+          "detail": "All present"
+        },
+        {
+          "severity": "ok",
+          "code": "MATH",
+          "title": "Line arithmetic",
+          "detail": "3 line(s) recomputed, sum €2.515,00 = net"
+        },
+        {
+          "severity": "ok",
+          "code": "VAT",
+          "title": "VAT",
+          "detail": "€2.515,00 × 19 % = €477,85"
+        },
+        {
+          "severity": "ok",
+          "code": "GROSS",
+          "title": "Gross total",
+          "detail": "€2.992,85"
+        },
+        {
+          "severity": "ok",
+          "code": "PO",
+          "title": "Purchase order",
+          "detail": "QB-10402 — Maschinenservice Kolb"
+        },
+        {
+          "severity": "ok",
+          "code": "QTY",
+          "title": "Quantity vs order",
+          "detail": "1,00 of 1,00 ordered"
+        },
+        {
+          "severity": "ok",
+          "code": "PRICE",
+          "title": "Unit price vs order",
+          "detail": "€1.850,00"
+        },
+        {
+          "severity": "review",
+          "code": "ITEMS_NOT_ORDERED",
+          "title": "Items not on the order",
+          "detail": "Pos 2 \"Dichtungssatz Füllventil (6 Stk)\" €285,00; Pos 3 \"Technikereinsatz Anfahrt 4h\" €380,00 — €665,00 not covered by QB-10402"
+        },
+        {
+          "severity": "review",
+          "code": "OVER_PO_VALUE",
+          "title": "Net exceeds order value",
+          "detail": "Order €1.850,00, document €2.515,00 (+€665,00)"
+        },
+        {
+          "severity": "ok",
+          "code": "IBAN",
+          "title": "IBAN checksum",
+          "detail": "ISO 13616 mod-97 valid"
+        },
+        {
+          "severity": "block",
+          "code": "IBAN_SHARED",
+          "title": "Bank account shared with other vendors",
+          "detail": "Same IBAN on documents from 10 other vendor(s): Brauereibedarf Hartmann GmbH, Etikett & Söhne GmbH, Federkiel Design Studio · Lena Vogt, Fruchtkontor Bodensee GmbH, Getränkefachgroßhandel Ostbayern, Hopfen & Etikett Druck GmbH, Kronkorken Müller KG, Kräuterhof Allgäu eG, Süddeutsche Zucker-Handels GmbH, Tankreinigung Süddeutschland GmbH. Independent suppliers do not share an account — verify by phone before paying."
+        },
+        {
+          "severity": "block",
+          "code": "DUPLICATE",
+          "title": "Duplicate invoice",
+          "detail": "Repeats RE-2026-0447 (2026-06-15, b06_kolb_re-2026-0447.pdf): same vendor, same order and amount €2.992,85."
+        }
+      ]
+    },
+    {
+      "decision": "INVESTIGATE",
+      "priority": "HIGH",
+      "summary": "Do not pay: Bank account shared with other vendors (+2 more)",
+      "file": "b11_hopfen_etikett_re-3390.pdf",
+      "read_by": "pdf-text",
+      "document": {
+        "source": "pdf-text",
+        "doc_type": "Rechnung",
+        "doc_kind": "invoice",
+        "not_invoice_note": false,
+        "vendor": "Hopfen & Etikett Druck GmbH",
+        "city": "Kelheim",
+        "invoice_number": "RE-3390",
+        "date": "2026-06-23",
+        "po": null,
+        "tax_id": "DE 166 909 214",
+        "iban": "DE89370400440532013000",
+        "net": 804.75,
+        "vat_rate": 19.0,
+        "vat": 152.9,
+        "gross": null,
+        "reverse_charge": false,
+        "net_only_note": true,
+        "payment_terms": null,
+        "lines": [
+          {
+            "pos": 1,
+            "description": "Sixpack-Träger Apfelschorle, Kartonage",
+            "qty": 5250.0,
+            "unit_price": 0.14,
+            "total": 719.25,
+            "unit_price_raw": "0,14"
+          },
+          {
+            "pos": 2,
+            "description": "Sonderfarbe Grün, Aufschlag",
+            "qty": 1.0,
+            "unit_price": 85.5,
+            "total": 85.5,
+            "unit_price_raw": "85,50"
+          }
+        ],
+        "needs_reading": false,
+        "read_error": null,
+        "po_match": null,
+        "iban_shared_with": [
+          "Brauereibedarf Hartmann GmbH",
+          "Etikett & Söhne GmbH",
+          "Federkiel Design Studio · Lena Vogt",
+          "Fruchtkontor Bodensee GmbH",
+          "Getränkefachgroßhandel Ostbayern",
+          "Kronkorken Müller KG",
+          "Kräuterhof Allgäu eG",
+          "Maschinenservice Kolb",
+          "Süddeutsche Zucker-Handels GmbH",
+          "Tankreinigung Süddeutschland GmbH"
+        ]
+      },
+      "findings": [
+        {
+          "severity": "ok",
+          "code": "DOC_TYPE",
+          "title": "Document type",
+          "detail": "Rechnung — payable document"
+        },
+        {
+          "severity": "review",
+          "code": "MISSING_FIELDS",
+          "title": "Mandatory fields missing (§14 UStG)",
+          "detail": "Missing: gross total — only says \"Nettobetrag zzgl. gesetzlicher Umsatzsteuer\""
+        },
+        {
+          "severity": "ok",
+          "code": "MATH",
+          "title": "Line arithmetic",
+          "detail": "2 line(s) recomputed, sum €804,75 = net"
+        },
+        {
+          "severity": "ok",
+          "code": "VAT",
+          "title": "VAT",
+          "detail": "€804,75 × 19 % = €152,90"
+        },
+        {
+          "severity": "review",
+          "code": "NO_PO",
+          "title": "No purchase order",
+          "detail": "No order number on the document; vendor has no open order in bestellungen.csv. Needs approval by the budget owner."
+        },
+        {
+          "severity": "ok",
+          "code": "IBAN",
+          "title": "IBAN checksum",
+          "detail": "ISO 13616 mod-97 valid"
+        },
+        {
+          "severity": "block",
+          "code": "IBAN_SHARED",
+          "title": "Bank account shared with other vendors",
+          "detail": "Same IBAN on documents from 10 other vendor(s): Brauereibedarf Hartmann GmbH, Etikett & Söhne GmbH, Federkiel Design Studio · Lena Vogt, Fruchtkontor Bodensee GmbH, Getränkefachgroßhandel Ostbayern, Kronkorken Müller KG, Kräuterhof Allgäu eG, Maschinenservice Kolb, Süddeutsche Zucker-Handels GmbH, Tankreinigung Süddeutschland GmbH. Independent suppliers do not share an account — verify by phone before paying."
+        }
+      ]
+    },
+    {
+      "decision": "INVESTIGATE",
+      "priority": "HIGH",
+      "summary": "Do not pay: Delivery note, not an invoice (+1 more)",
+      "file": "b12_kartonagen_beck_ls-2210.pdf",
+      "read_by": "pdf-text",
+      "document": {
+        "source": "pdf-text",
+        "doc_type": "Lieferschein",
+        "doc_kind": "delivery_note",
+        "not_invoice_note": false,
+        "vendor": "Kartonagen Beck GmbH",
+        "city": "Straubing",
+        "invoice_number": "LS-2210",
+        "date": "2026-06-20",
+        "po": "QB-10398",
+        "tax_id": null,
+        "iban": null,
+        "net": null,
+        "vat_rate": null,
+        "vat": null,
+        "gross": null,
+        "reverse_charge": false,
+        "net_only_note": false,
+        "payment_terms": null,
+        "lines": [
+          {
+            "pos": 1,
+            "description": "Umkarton 24x0,33l bedruckt",
+            "qty": 1500.0,
+            "unit_price": null,
+            "total": null,
+            "unit_price_raw": null
+          },
+          {
+            "pos": 2,
+            "description": "Zwischenlage Wellpappe",
+            "qty": 1500.0,
+            "unit_price": null,
+            "total": null,
+            "unit_price_raw": null
+          }
+        ],
+        "needs_reading": false,
+        "read_error": null,
+        "po_match": [
+          {
+            "article": "Umkarton 24x0,33l bedruckt",
+            "po_qty": 1500.0,
+            "po_unit": 0.62,
+            "doc_qty": 1500.0,
+            "doc_unit": null,
+            "lines": [
+              1
+            ]
+          }
+        ],
+        "iban_shared_with": []
+      },
+      "findings": [
+        {
+          "severity": "block",
+          "code": "NOT_AN_INVOICE",
+          "title": "Delivery note, not an invoice",
+          "detail": "Lieferschein: no amounts to pay. File as goods receipt and request the invoice."
+        },
+        {
+          "severity": "ok",
+          "code": "PO",
+          "title": "Purchase order",
+          "detail": "QB-10398 — Kartonagen Beck GmbH"
+        },
+        {
+          "severity": "ok",
+          "code": "QTY",
+          "title": "Quantity vs order",
+          "detail": "1.500,00 of 1.500,00 ordered"
+        },
+        {
+          "severity": "review",
+          "code": "ITEMS_NOT_ORDERED",
+          "title": "Items not on the order",
+          "detail": "Pos 2 \"Zwischenlage Wellpappe\""
+        }
+      ]
+    },
+    {
+      "decision": "INVESTIGATE",
+      "priority": "NORMAL",
+      "summary": "Clarify before paying: No purchase order",
+      "file": "b13_nordic_caps_inv-2026-338.pdf",
+      "read_by": "pdf-text",
+      "document": {
+        "source": "pdf-text",
+        "doc_type": "Invoice",
+        "doc_kind": "invoice",
+        "not_invoice_note": false,
+        "vendor": "Nordic Bottle Caps ApS",
+        "city": "Aarhus, Dänemark",
+        "invoice_number": "INV-2026-338",
+        "date": "2026-06-17",
+        "po": null,
+        "tax_id": "DK 38 55 21 09",
+        "iban": "DK5000400440116243",
+        "net": 1875.0,
+        "vat_rate": 0.0,
+        "vat": 0.0,
+        "gross": 1875.0,
+        "reverse_charge": true,
+        "net_only_note": false,
+        "payment_terms": null,
+        "lines": [
+          {
+            "pos": 1,
+            "description": "Specialty crown caps, matte black, 150,000 pcs",
+            "qty": 150000.0,
+            "unit_price": 0.01,
+            "total": 1875.0,
+            "unit_price_raw": "0.01"
+          }
+        ],
+        "needs_reading": false,
+        "read_error": null,
+        "po_match": null,
+        "iban_shared_with": []
+      },
+      "findings": [
+        {
+          "severity": "ok",
+          "code": "DOC_TYPE",
+          "title": "Document type",
+          "detail": "Invoice — payable document"
+        },
+        {
+          "severity": "ok",
+          "code": "MANDATORY",
+          "title": "Mandatory fields (§14 UStG)",
+          "detail": "All present"
+        },
+        {
+          "severity": "ok",
+          "code": "MATH",
+          "title": "Line arithmetic",
+          "detail": "1 line(s) recomputed, sum €1.875,00 = net"
+        },
+        {
+          "severity": "ok",
+          "code": "VAT",
+          "title": "VAT",
+          "detail": "Reverse charge §13b UStG: 0 % VAT, Quellberg self-assesses 19 % (€356,25)"
+        },
+        {
+          "severity": "ok",
+          "code": "GROSS",
+          "title": "Gross total",
+          "detail": "€1.875,00"
+        },
+        {
+          "severity": "review",
+          "code": "NO_PO",
+          "title": "No purchase order",
+          "detail": "No order number on the document; vendor has no open order in bestellungen.csv. Needs approval by the budget owner."
+        },
+        {
+          "severity": "ok",
+          "code": "IBAN",
+          "title": "IBAN checksum",
+          "detail": "ISO 13616 mod-97 valid"
+        }
+      ]
+    },
+    {
+      "decision": "INVESTIGATE",
+      "priority": "HIGH",
+      "summary": "Do not pay: Bank account shared with other vendors (+2 more)",
+      "file": "b14_fruchtkontor_bodensee_re-2026-902.pdf",
+      "read_by": "pdf-text",
+      "document": {
+        "source": "pdf-text",
+        "doc_type": "Rechnung",
+        "doc_kind": "invoice",
+        "not_invoice_note": false,
+        "vendor": "Fruchtkontor Bodensee GmbH",
+        "city": "Friedrichshafen",
+        "invoice_number": "RE-2026-902",
+        "date": "2026-06-26",
+        "po": "QB-10416",
+        "tax_id": "DE 202 774 118",
+        "iban": "DE89370400440532013000",
+        "net": 10110.0,
+        "vat_rate": 7.0,
+        "vat": 707.7,
+        "gross": 10817.7,
+        "reverse_charge": false,
+        "net_only_note": false,
+        "payment_terms": null,
+        "lines": [
+          {
+            "pos": 1,
+            "description": "Apfelsaftkonzentrat 70 Brix, 1000l IBC",
+            "qty": 8.0,
+            "unit_price": 1240.0,
+            "total": 9920.0,
+            "unit_price_raw": "1.240,00"
+          },
+          {
+            "pos": 2,
+            "description": "Ascorbinsäure-Zusatz (Antioxidans)",
+            "qty": 8.0,
+            "unit_price": 23.75,
+            "total": 190.0,
+            "unit_price_raw": "23,75"
+          }
+        ],
+        "needs_reading": false,
+        "read_error": null,
+        "po_match": [
+          {
+            "article": "Apfelsaftkonzentrat 70 Brix IBC",
+            "po_qty": 8.0,
+            "po_unit": 1240.0,
+            "doc_qty": 8.0,
+            "doc_unit": 1240.0,
+            "lines": [
+              1
+            ]
+          }
+        ],
+        "iban_shared_with": [
+          "Brauereibedarf Hartmann GmbH",
+          "Etikett & Söhne GmbH",
+          "Federkiel Design Studio · Lena Vogt",
+          "Getränkefachgroßhandel Ostbayern",
+          "Hopfen & Etikett Druck GmbH",
+          "Kronkorken Müller KG",
+          "Kräuterhof Allgäu eG",
+          "Maschinenservice Kolb",
+          "Süddeutsche Zucker-Handels GmbH",
+          "Tankreinigung Süddeutschland GmbH"
+        ]
+      },
+      "findings": [
+        {
+          "severity": "ok",
+          "code": "DOC_TYPE",
+          "title": "Document type",
+          "detail": "Rechnung — payable document"
+        },
+        {
+          "severity": "ok",
+          "code": "MANDATORY",
+          "title": "Mandatory fields (§14 UStG)",
+          "detail": "All present"
+        },
+        {
+          "severity": "ok",
+          "code": "MATH",
+          "title": "Line arithmetic",
+          "detail": "2 line(s) recomputed, sum €10.110,00 = net"
+        },
+        {
+          "severity": "ok",
+          "code": "VAT",
+          "title": "VAT",
+          "detail": "€10.110,00 × 7 % = €707,70"
+        },
+        {
+          "severity": "ok",
+          "code": "GROSS",
+          "title": "Gross total",
+          "detail": "€10.817,70"
+        },
+        {
+          "severity": "ok",
+          "code": "PO",
+          "title": "Purchase order",
+          "detail": "QB-10416 — Fruchtkontor Bodensee GmbH"
+        },
+        {
+          "severity": "ok",
+          "code": "QTY",
+          "title": "Quantity vs order",
+          "detail": "8,00 of 8,00 ordered"
+        },
+        {
+          "severity": "ok",
+          "code": "PRICE",
+          "title": "Unit price vs order",
+          "detail": "€1.240,00"
+        },
+        {
+          "severity": "review",
+          "code": "ITEMS_NOT_ORDERED",
+          "title": "Items not on the order",
+          "detail": "Pos 2 \"Ascorbinsäure-Zusatz (Antioxidans)\" €190,00 — €190,00 not covered by QB-10416"
+        },
+        {
+          "severity": "review",
+          "code": "OVER_PO_VALUE",
+          "title": "Net exceeds order value",
+          "detail": "Order €9.920,00, document €10.110,00 (+€190,00)"
+        },
+        {
+          "severity": "ok",
+          "code": "IBAN",
+          "title": "IBAN checksum",
+          "detail": "ISO 13616 mod-97 valid"
+        },
+        {
+          "severity": "block",
+          "code": "IBAN_SHARED",
+          "title": "Bank account shared with other vendors",
+          "detail": "Same IBAN on documents from 10 other vendor(s): Brauereibedarf Hartmann GmbH, Etikett & Söhne GmbH, Federkiel Design Studio · Lena Vogt, Getränkefachgroßhandel Ostbayern, Hopfen & Etikett Druck GmbH, Kronkorken Müller KG, Kräuterhof Allgäu eG, Maschinenservice Kolb, Süddeutsche Zucker-Handels GmbH, Tankreinigung Süddeutschland GmbH. Independent suppliers do not share an account — verify by phone before paying."
+        }
+      ]
+    },
+    {
+      "decision": "INVESTIGATE",
+      "priority": "HIGH",
+      "summary": "Do not pay: Quote, not an invoice; Bank account shared with other vendors (+2 more)",
+      "file": "b15_tankreinigung_sued_an-2026-118.pdf",
+      "read_by": "pdf-text",
+      "document": {
+        "source": "pdf-text",
+        "doc_type": "Angebot",
+        "doc_kind": "quote",
+        "not_invoice_note": true,
+        "vendor": "Tankreinigung Süddeutschland GmbH",
+        "city": "Ingolstadt",
+        "invoice_number": "AN-2026-118",
+        "date": "2026-06-30",
+        "po": "QB-10421",
+        "tax_id": "DE 187 220 903",
+        "iban": "DE89370400440532013000",
+        "net": 4000.0,
+        "vat_rate": 19.0,
+        "vat": 760.0,
+        "gross": 4760.0,
+        "reverse_charge": false,
+        "net_only_note": false,
+        "payment_terms": null,
+        "lines": [
+          {
+            "pos": 1,
+            "description": "CIP-Reinigung Lagertanks 5x, Komplettpaket",
+            "qty": 5.0,
+            "unit_price": 680.0,
+            "total": 3400.0,
+            "unit_price_raw": "680,00"
+          },
+          {
+            "pos": 2,
+            "description": "Desinfektion & Protokoll",
+            "qty": 5.0,
+            "unit_price": 120.0,
+            "total": 600.0,
+            "unit_price_raw": "120,00"
+          }
+        ],
+        "needs_reading": false,
+        "read_error": null,
+        "po_match": [
+          {
+            "article": "CIP-Reinigung Lagertanks",
+            "po_qty": 5.0,
+            "po_unit": 680.0,
+            "doc_qty": 5.0,
+            "doc_unit": 680.0,
+            "lines": [
+              1
+            ]
+          }
+        ],
+        "iban_shared_with": [
+          "Brauereibedarf Hartmann GmbH",
+          "Etikett & Söhne GmbH",
+          "Federkiel Design Studio · Lena Vogt",
+          "Fruchtkontor Bodensee GmbH",
+          "Getränkefachgroßhandel Ostbayern",
+          "Hopfen & Etikett Druck GmbH",
+          "Kronkorken Müller KG",
+          "Kräuterhof Allgäu eG",
+          "Maschinenservice Kolb",
+          "Süddeutsche Zucker-Handels GmbH"
+        ]
+      },
+      "findings": [
+        {
+          "severity": "block",
+          "code": "NOT_AN_INVOICE",
+          "title": "Quote, not an invoice",
+          "detail": "Angebot: the document itself says it is not an invoice. Do not pay."
+        },
+        {
+          "severity": "ok",
+          "code": "MATH",
+          "title": "Line arithmetic",
+          "detail": "2 line(s) recomputed, sum €4.000,00 = net"
+        },
+        {
+          "severity": "ok",
+          "code": "PO",
+          "title": "Purchase order",
+          "detail": "QB-10421 — Tankreinigung Süddeutschland GmbH"
+        },
+        {
+          "severity": "ok",
+          "code": "QTY",
+          "title": "Quantity vs order",
+          "detail": "5,00 of 5,00 ordered"
+        },
+        {
+          "severity": "ok",
+          "code": "PRICE",
+          "title": "Unit price vs order",
+          "detail": "€680,00"
+        },
+        {
+          "severity": "review",
+          "code": "ITEMS_NOT_ORDERED",
+          "title": "Items not on the order",
+          "detail": "Pos 2 \"Desinfektion & Protokoll\" €600,00 — €600,00 not covered by QB-10421"
+        },
+        {
+          "severity": "review",
+          "code": "OVER_PO_VALUE",
+          "title": "Net exceeds order value",
+          "detail": "Order €3.400,00, document €4.000,00 (+€600,00)"
+        },
+        {
+          "severity": "ok",
+          "code": "IBAN",
+          "title": "IBAN checksum",
+          "detail": "ISO 13616 mod-97 valid"
+        },
+        {
+          "severity": "block",
+          "code": "IBAN_SHARED",
+          "title": "Bank account shared with other vendors",
+          "detail": "Same IBAN on documents from 10 other vendor(s): Brauereibedarf Hartmann GmbH, Etikett & Söhne GmbH, Federkiel Design Studio · Lena Vogt, Fruchtkontor Bodensee GmbH, Getränkefachgroßhandel Ostbayern, Hopfen & Etikett Druck GmbH, Kronkorken Müller KG, Kräuterhof Allgäu eG, Maschinenservice Kolb, Süddeutsche Zucker-Handels GmbH. Independent suppliers do not share an account — verify by phone before paying."
+        }
+      ]
+    },
+    {
+      "decision": "INVESTIGATE",
+      "priority": "HIGH",
+      "summary": "Do not pay: Bank account shared with other vendors (+1 more)",
+      "file": "b16_brauereibedarf_hartmann_re-7712.pdf",
+      "read_by": "pdf-text",
+      "document": {
+        "source": "pdf-text",
+        "doc_type": "Rechnung",
+        "doc_kind": "invoice",
+        "not_invoice_note": false,
+        "vendor": "Brauereibedarf Hartmann GmbH",
+        "city": "Bamberg",
+        "invoice_number": "RE-7712",
+        "date": "2026-06-13",
+        "po": null,
+        "tax_id": "DE 155 019 883",
+        "iban": "DE89370400440532013000",
+        "net": 2231.4,
+        "vat_rate": 19.0,
+        "vat": 423.97,
+        "gross": 2655.37,
+        "reverse_charge": false,
+        "net_only_note": false,
+        "payment_terms": "14 Tage 2% Skonto, 30 Tage netto.",
+        "lines": [
+          {
+            "pos": 1,
+            "description": "Schlauchschelle W4 Edelstahl VE100",
+            "qty": 12.0,
+            "unit_price": 18.4,
+            "total": 220.8,
+            "unit_price_raw": "18,40"
+          },
+          {
+            "pos": 2,
+            "description": "Lebensmittelschlauch DN25, Meter",
+            "qty": 60.0,
+            "unit_price": 7.9,
+            "total": 474.0,
+            "unit_price_raw": "7,90"
+          },
+          {
+            "pos": 3,
+            "description": "Dichtring EPDM DN50 VE25",
+            "qty": 8.0,
+            "unit_price": 14.25,
+            "total": 114.0,
+            "unit_price_raw": "14,25"
+          },
+          {
+            "pos": 4,
+            "description": "Kugelhahn Edelstahl DN25",
+            "qty": 6.0,
+            "unit_price": 38.6,
+            "total": 231.6,
+            "unit_price_raw": "38,60"
+          },
+          {
+            "pos": 5,
+            "description": "Manometer 0-6 bar, Glyzerin",
+            "qty": 4.0,
+            "unit_price": 29.9,
+            "total": 119.6,
+            "unit_price_raw": "29,90"
+          },
+          {
+            "pos": 6,
+            "description": "Reinigungsbürste Tank, lang",
+            "qty": 10.0,
+            "unit_price": 12.3,
+            "total": 123.0,
+            "unit_price_raw": "12,30"
+          },
+          {
+            "pos": 7,
+            "description": "Filtermatte 60x60, VE5",
+            "qty": 5.0,
+            "unit_price": 41.0,
+            "total": 205.0,
+            "unit_price_raw": "41,00"
+          },
+          {
+            "pos": 8,
+            "description": "Handschuhe Nitril Gr.L, Box",
+            "qty": 20.0,
+            "unit_price": 8.75,
+            "total": 175.0,
+            "unit_price_raw": "8,75"
+          },
+          {
+            "pos": 9,
+            "description": "Sicherheitsbrille klar",
+            "qty": 15.0,
+            "unit_price": 6.4,
+            "total": 96.0,
+            "unit_price_raw": "6,40"
+          },
+          {
+            "pos": 10,
+            "description": "PTFE-Dichtband Rolle",
+            "qty": 24.0,
+            "unit_price": 2.15,
+            "total": 51.6,
+            "unit_price_raw": "2,15"
+          },
+          {
+            "pos": 11,
+            "description": "Schmierfett lebensmittelecht 1kg",
+            "qty": 6.0,
+            "unit_price": 22.5,
+            "total": 135.0,
+            "unit_price_raw": "22,50"
+          },
+          {
+            "pos": 12,
+            "description": "Kabelbinder 300mm VE100",
+            "qty": 8.0,
+            "unit_price": 4.8,
+            "total": 38.4,
+            "unit_price_raw": "4,80"
+          },
+          {
+            "pos": 13,
+            "description": "Warnschild Reinigung läuft",
+            "qty": 10.0,
+            "unit_price": 5.9,
+            "total": 59.0,
+            "unit_price_raw": "5,90"
+          },
+          {
+            "pos": 14,
+            "description": "Eimer Kunststoff 12l",
+            "qty": 12.0,
+            "unit_price": 6.2,
+            "total": 74.4,
+            "unit_price_raw": "6,20"
+          },
+          {
+            "pos": 15,
+            "description": "Wischtücher Rolle VE6",
+            "qty": 10.0,
+            "unit_price": 11.4,
+            "total": 114.0,
+            "unit_price_raw": "11,40"
+          }
+        ],
+        "needs_reading": false,
+        "read_error": null,
+        "po_match": null,
+        "iban_shared_with": [
+          "Etikett & Söhne GmbH",
+          "Federkiel Design Studio · Lena Vogt",
+          "Fruchtkontor Bodensee GmbH",
+          "Getränkefachgroßhandel Ostbayern",
+          "Hopfen & Etikett Druck GmbH",
+          "Kronkorken Müller KG",
+          "Kräuterhof Allgäu eG",
+          "Maschinenservice Kolb",
+          "Süddeutsche Zucker-Handels GmbH",
+          "Tankreinigung Süddeutschland GmbH"
+        ]
+      },
+      "findings": [
+        {
+          "severity": "ok",
+          "code": "DOC_TYPE",
+          "title": "Document type",
+          "detail": "Rechnung — payable document"
+        },
+        {
+          "severity": "ok",
+          "code": "MANDATORY",
+          "title": "Mandatory fields (§14 UStG)",
+          "detail": "All present"
+        },
+        {
+          "severity": "ok",
+          "code": "MATH",
+          "title": "Line arithmetic",
+          "detail": "15 line(s) recomputed, sum €2.231,40 = net"
+        },
+        {
+          "severity": "ok",
+          "code": "VAT",
+          "title": "VAT",
+          "detail": "€2.231,40 × 19 % = €423,97"
+        },
+        {
+          "severity": "ok",
+          "code": "GROSS",
+          "title": "Gross total",
+          "detail": "€2.655,37"
+        },
+        {
+          "severity": "review",
+          "code": "NO_PO",
+          "title": "No purchase order",
+          "detail": "No order number on the document; vendor has no open order in bestellungen.csv. Needs approval by the budget owner."
+        },
+        {
+          "severity": "ok",
+          "code": "IBAN",
+          "title": "IBAN checksum",
+          "detail": "ISO 13616 mod-97 valid"
+        },
+        {
+          "severity": "block",
+          "code": "IBAN_SHARED",
+          "title": "Bank account shared with other vendors",
+          "detail": "Same IBAN on documents from 10 other vendor(s): Etikett & Söhne GmbH, Federkiel Design Studio · Lena Vogt, Fruchtkontor Bodensee GmbH, Getränkefachgroßhandel Ostbayern, Hopfen & Etikett Druck GmbH, Kronkorken Müller KG, Kräuterhof Allgäu eG, Maschinenservice Kolb, Süddeutsche Zucker-Handels GmbH, Tankreinigung Süddeutschland GmbH. Independent suppliers do not share an account — verify by phone before paying."
+        }
+      ]
+    }
+  ]
+}

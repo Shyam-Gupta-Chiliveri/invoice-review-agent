@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Receipt fields read from a photo or scan",
+  "type": "object",
+  "properties": {
+    "doc_type":       {"type": ["string", "null"], "description": "Title word printed on the document: Rechnung, Invoice, Lieferschein, Angebot, Gutschrift"},
+    "not_invoice_note": {"type": "boolean", "description": "true if the document says it is not an invoice"},
+    "vendor":         {"type": ["string", "null"]},
+    "city":           {"type": ["string", "null"]},
+    "invoice_number": {"type": ["string", "null"]},
+    "date":           {"type": ["string", "null"], "description": "YYYY-MM-DD"},
+    "po":             {"type": ["string", "null"], "description": "Quellberg order number QB-… if printed"},
+    "tax_id":         {"type": ["string", "null"], "description": "Steuernummer or USt-IdNr as printed"},
+    "iban":           {"type": ["string", "null"], "description": "without spaces"},
+    "net":            {"type": ["number", "null"]},
+    "vat_rate":       {"type": ["number", "null"], "description": "percent, e.g. 19"},
+    "vat":            {"type": ["number", "null"]},
+    "gross":          {"type": ["number", "null"]},
+    "reverse_charge": {"type": "boolean"},
+    "payment_terms":  {"type": ["string", "null"]},
+    "lines": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "pos": {"type": "integer"},
+          "description": {"type": "string"},
+          "qty": {"type": ["number", "null"]},
+          "unit_price": {"type": ["number", "null"]},
+          "total": {"type": ["number", "null"]}
+        },
+        "required": ["description"]
+      }
+    }
+  },
+  "required": ["doc_type"]
+}

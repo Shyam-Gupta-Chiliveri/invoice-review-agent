@@ -1,0 +1,19 @@
+{
+  "doc_type": "Rechnung",
+  "vendor": "Getränkefachgroßhandel Ostbayern",
+  "city": "Passau",
+  "invoice_number": "RE-2026-771",
+  "date": "2026-06-21",
+  "po": null,
+  "tax_id": "DE 211 556 043",
+  "iban": "DE89370400440532013000",
+  "net": 1074.00,
+  "vat_rate": 19,
+  "vat": 204.06,
+  "gross": 1278.06,
+  "reverse_charge": false,
+  "lines": [
+    {"pos": 1, "description": "Leergut-Kiste 24x0,33l, Rücknahme-Ausgleich", "qty": 120, "unit_price": 4.50, "total": 540.00},
+    {"pos": 2, "description": "Getränkekiste Kunststoff neu", "qty": 60, "unit_price": 8.90, "total": 534.00}
+  ]
+}
