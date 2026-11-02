@@ -5,7 +5,7 @@ A **Forward Deployed AI Engineer** demo: an intelligent accounts-payable review 
 ## Live Demo
 
 Open `index.html` in any modern browser — no server required.  
-Or view the hosted version: [Quellberg Invoice Review](https://claude.ai/artifact/Tv6fpSmZQkfqYbUAK5Vyvn)
+Or view the hosted version: [Quellberg Invoice Review](https://htmlpreview.github.io/?https://github.com/Shyam-Gupta-Chiliveri/invoice-review-agent/blob/main/index.html)
 
 ## What it does
 
