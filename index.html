@@ -2374,39 +2374,87 @@ function generateUploadInvoice(file) {
   const invNum = 'RE-' + now.getFullYear() + '-' + String(~~(Math.random()*9000)+1000);
   const po = 'QB-' + String(~~(Math.random()*90000)+10000);
   const net = Math.round((Math.random()*7000+800)*100)/100;
-  const vat = Math.round(net*0.19*100)/100;
-  const amount = Math.round((net+vat)*100)/100;
   const r = () => String(~~(Math.random()*9000)+1000);
   const iban = `DE${~~(Math.random()*90)+10} ${r()} ${r()} ${r()} ${r()} ${~~(Math.random()*90)+10}`;
-  const q = ~~(Math.random()*150)+10;
-  const u = Math.round((net/q)*100)/100;
-  // Derive a realistic verdict from the actual numbers
-  const vatCalcOk  = Math.abs(Math.round(net*0.19*100)/100 - vat) < 0.02;
-  const unitOk     = Math.abs(u - Math.round(net/q*100)/100) < 0.02;
-  const seed       = name.split('').reduce((a,c)=>a+c.charCodeAt(0),0);
-  const ibanRisk   = seed % 7 === 0; // ~14 % of new uploads flag IBAN risk
-  const poMismatch = seed % 11 === 0; // ~9 %  flag a PO mismatch
+  const poQty = ~~(Math.random()*150)+10;
+  const poUnit = Math.round((net/poQty)*100)/100;
+
+  // Balanced verdict distribution: 30% critical, 30% hold, 40% approve
+  const seed = name.split('').reduce((a,c)=>a+c.charCodeAt(0),0);
+  const bucket = seed % 10;
+  const ibanRisk   = bucket < 3;              // 30 % → critical
+  const poMismatch = !ibanRisk && bucket < 6; // 30 % → hold
   const uploadStatus = ibanRisk ? 'critical' : (poMismatch ? 'hold' : 'approve');
+
+  // Introduce real data errors for non-approved invoices so Validation tab shows actual failures
+  // Critical: VAT miscalculation (off by a seed-driven amount) + IBAN ring hit
+  // Hold:     Invoiced quantity > PO quantity (quantity discrepancy)
+  const expectedVat = Math.round(net*0.19*100)/100;
+  const vatError    = ibanRisk ? Math.round(((seed%5)+1)*0.5*100)/100 : 0; // 0.50–2.50 € over
+  const vat         = Math.round((expectedVat + vatError)*100)/100;
+  const amount      = Math.round((net+vat)*100)/100;
+
+  // Quantity: for hold, invoice shows 1–6 extra units compared to PO
+  const qtyOver  = poMismatch ? (seed%6)+1 : 0;
+  const invQty   = poQty + qtyOver;
+  const invUnit  = Math.round((net/invQty)*100)/100;
+
+  const vatCalcOk = vatError === 0;
+  const unitOk    = qtyOver === 0;
+  const amtConf   = ibanRisk ? 'warn' : 'ok'; // flag amount field for critical invoices
+
   const uploadVerdict = ibanRisk
-    ? 'Critical — IBAN flagged in shared-account ring. Do not release payment without manual check.'
+    ? `Critical — IBAN matches a known shared-account ring (${iban.slice(0,12)}…). Payment blocked pending manual fraud review.`
     : poMismatch
-      ? 'Hold — PO quantity could not be verified. Awaiting confirmation from procurement.'
-      : 'Approve — All automated checks passed. No anomalies detected.';
+      ? `Hold — Invoiced quantity (${invQty} units) exceeds purchase order ${po} (${poQty} units). Awaiting procurement sign-off.`
+      : 'Approve — All automated checks passed. VAT, quantities, IBAN and PO reference verified. No anomalies detected.';
+
+  // Additional checks for non-approved invoices
+  const extraChecks = [];
+  if (ibanRisk) {
+    extraChecks.push({s:'err', t:'Duplicate IBAN Ring', d:`Account appears across ${(seed%3)+2} distinct vendors — possible payment fraud`});
+  }
+  if (net > 5000) {
+    extraChecks.push({s: uploadStatus==='approve'?'ok':'warn', t:'Approval Threshold', d: uploadStatus==='approve'?`Net €${fmt(net)} — within auto-approval limit ✓`:`Net €${fmt(net)} exceeds €5,000 — dual authorisation required`});
+  }
+
   const inv = {
     id: newId, vendor, addr:'Deutschland', invNum, po, date:dateStr,
     amount, net, vat, vatRate:19, file:name, iban, ibanShared:ibanRisk,
-    lines:[{d:`Lieferung gemäß Bestellung ${po}`, q, u, t:net}],
+    lines:[{d:`Lieferung gemäß Bestellung ${po}`, q:invQty, u:invUnit, t:net}],
     status:'processing',
-    poQty:q, poUnit:u, invQty:q, invUnit:u,
-    fieldConf:{vendor:'ok',invNum:'ok',date:'ok',po:'ok',net:'ok',vat:'ok',amount:'ok',iban: ibanRisk?'err':'ok'},
+    poQty, poUnit, invQty, invUnit,
+    fieldConf:{
+      vendor:'ok', invNum:'ok', date:'ok', po:'ok',
+      net:'ok', vat: vatCalcOk?'ok':'err', amount: amtConf,
+      iban: ibanRisk?'err':'ok'
+    },
     verdict: uploadVerdict,
     checks:[
-      {s: vatCalcOk?'ok':'warn', t:'VAT Calculation', d: vatCalcOk?`€${fmt(net)} × 19% = €${fmt(vat)} ✓`:`VAT mismatch: expected €${fmt(Math.round(net*0.19*100)/100)}, got €${fmt(vat)}`},
-      {s: unitOk?'ok':'warn',   t:'Quantity Match',   d: unitOk?`${q} units ordered → ${q} invoiced ✓`:`Unit price deviation detected`},
-      {s: ibanRisk?'err':'ok',  t:'IBAN Check',       d: ibanRisk?'IBAN matches account in shared-vendor ring ✗':'Unique IBAN — no shared accounts detected ✓'},
-      {s: poMismatch?'warn':'ok',t:'PO Reference',    d: poMismatch?`PO ${po} quantity unconfirmed — procurement check required`:`PO ${po} found and validated ✓`},
+      {s: vatCalcOk?'ok':'err', t:'VAT Calculation',
+        d: vatCalcOk
+          ? `€${fmt(net)} × 19% = €${fmt(expectedVat)} ✓`
+          : `VAT mismatch — expected €${fmt(expectedVat)}, invoiced €${fmt(vat)} (Δ €${fmt(vatError)})`},
+      {s: unitOk?'ok':'warn', t:'Quantity / Unit Price',
+        d: unitOk
+          ? `${poQty} units ordered, ${invQty} invoiced, unit price €${fmt(poUnit)} ✓`
+          : `Quantity discrepancy — PO: ${poQty} units @ €${fmt(poUnit)}, Invoice: ${invQty} units @ €${fmt(invUnit)}`},
+      {s: ibanRisk?'err':'ok', t:'IBAN Uniqueness',
+        d: ibanRisk
+          ? `IBAN ${iban.slice(0,12)}… flagged in shared-vendor ring — do not pay ✗`
+          : `${iban} — unique, no cross-vendor matches ✓`},
+      {s: poMismatch?'warn':'ok', t:'PO Reference',
+        d: poMismatch
+          ? `PO ${po} found but quantity could not be confirmed — procurement check pending`
+          : `PO ${po} found and validated ✓`},
+      ...extraChecks,
     ],
-    pipeline:[{l:'Reader',s:'ok'},{l:'Auditor',s: poMismatch?'warn':'ok'},{l:'IBAN Ring',s: ibanRisk?'err':'ok'},{l:'Verdict',s: uploadStatus==='approve'?'ok': uploadStatus==='hold'?'warn':'err'}],
+    pipeline:[
+      {l:'Reader',s:'ok'},
+      {l:'Auditor',s: (!vatCalcOk||!unitOk)?'warn':'ok'},
+      {l:'IBAN Ring',s: ibanRisk?'err':'ok'},
+      {l:'Verdict',s: uploadStatus==='approve'?'ok': uploadStatus==='hold'?'warn':'err'}
+    ],
     _finalStatus: uploadStatus,
     _fileType: fileType,
     _dataUrl: null,
@@ -2421,7 +2469,6 @@ function generateUploadInvoice(file) {
   };
   if (isRealFile) {
     if (fileType === 'image') {
-      // Images: base64 data URL via FileReader
       const reader = new FileReader();
       reader.onload = evt => {
         inv._dataUrl = evt.target.result;
@@ -2429,11 +2476,9 @@ function generateUploadInvoice(file) {
       };
       reader.readAsDataURL(file);
     } else {
-      // PDFs: create blob URL immediately for native viewer display,
-      // then kick off PDF.js canvas rendering in the background (upgrades display if it works)
       inv._blobUrl = URL.createObjectURL(file);
-      if (currentId === inv.id) buildDocPaper(inv); // show native viewer right away
-      renderPdfPage(file, inv);                     // async canvas upgrade
+      if (currentId === inv.id) buildDocPaper(inv);
+      renderPdfPage(file, inv);
     }
   }
   return inv;
@@ -2441,9 +2486,17 @@ function generateUploadInvoice(file) {
 
 function animateNewInvoice(inv) {
   const stepDelays = [650, 550, 750, 500, 580, 480];
+
+  // Each step's correct final status — matches the static pipeline shown after animation
+  const valSt   = inv.checks.some(c=>c.s==='err') ? 'err' : inv.checks.some(c=>c.s==='warn') ? 'warn' : 'ok';
+  const ibanSt  = inv._finalStatus === 'critical' ? 'err' : 'ok';
+  const verdSt  = inv._finalStatus === 'approve' ? 'ok' : inv._finalStatus === 'critical' ? 'err' : 'warn';
+  const emailSt = inv._finalStatus === 'approve' ? 'skip' : 'ok';
+  const finalStepStatuses = ['ok', valSt, ibanSt, verdSt, 'ok', emailSt];
+
   let step = 0;
   function advance() {
-    inv._runSteps[step].s = 'ok';
+    inv._runSteps[step].s = finalStepStatuses[step]; // ← correct status per step
     step++;
     if (step < inv._runSteps.length) {
       inv._runSteps[step].s = 'processing';
@@ -2451,7 +2504,6 @@ function animateNewInvoice(inv) {
       buildQueue(currentFilter);
       setTimeout(advance, stepDelays[step] || 500);
     } else {
-      // All done — finalize with the verdict that was pre-computed for this upload
       inv.status = inv._finalStatus || 'approve';
       inv._runSteps = null;
       buildQueue(currentFilter);
