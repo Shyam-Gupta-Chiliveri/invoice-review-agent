@@ -1289,24 +1289,18 @@ input, select { font-family: inherit; font-size: 13px; }
 </div>
 
 <!-- ── Assistant (RAG chat) ─────────────────────────────── -->
-<button id="qbFab" aria-label="Open assistant" aria-expanded="false" aria-controls="qbPanel" title="Ask the assistant">
+<button id="qbFab" aria-label="Open the AI assistant" aria-expanded="false" aria-controls="qbPanel" title="Open the AI assistant">
   <svg class="qb-ic-chat" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h8M8 13h5"/></svg>
   <svg class="qb-ic-close" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M18 6 6 18M6 6l12 12"/></svg>
 </button>
-<section id="qbPanel" role="dialog" aria-label="Invoice review assistant">
+<section id="qbPanel" role="dialog" aria-label="AI assistant">
   <div class="qb-head">
     <div class="qb-av"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3v2M5 9a7 7 0 0 1 14 0v6a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3z"/><circle cx="9.5" cy="12" r="1"/><circle cx="14.5" cy="12" r="1"/></svg></div>
-    <div><b>Review assistant</b><small>Answers from the app and your uploaded documents</small></div>
+    <div><b id="qbTitle">AI Assistant</b><small id="qbSub">Answers from the app and your uploaded documents</small></div>
     <button id="qbClose" aria-label="Close">×</button>
   </div>
   <div id="qbMsgs" aria-live="polite"></div>
-  <div class="qb-chips">
-    <button class="qb-chip">Which invoices are critical?</button>
-    <button class="qb-chip">Who shares an IBAN?</button>
-    <button class="qb-chip">How much money is at risk?</button>
-    <button class="qb-chip">How is the verdict decided?</button>
-    <button class="qb-chip">Which documents have no PO?</button>
-  </div>
+  <div class="qb-chips" id="qbChips"></div>
   <form id="qbForm" autocomplete="off">
     <input id="qbInput" type="text" placeholder="Ask about an invoice, vendor, IBAN, PO…" aria-label="Question">
     <button id="qbSend" type="submit">Ask</button>
@@ -2819,77 +2813,165 @@ function buildVendorEmail(inv, lang) {
 }
 
 /* ════════════════════════════════════════════════════════════════════
-   ASSISTANT — retrieval-augmented Q&A about the app and the live batch
-   1. Index   : app knowledge + one chunk per document / shared IBAN / PO,
-                rebuilt from the current batch on every question
+   AI ASSISTANT — retrieval-augmented Q&A about the app and the live batch
+   1. Index   : app knowledge (EN + DE) + one chunk per document / shared
+                IBAN / PO, rebuilt from the current batch on every question
    2. Retrieve: BM25 over German/English tokens + entity boost (invoice no.,
                 file, vendor, IBAN, PO)
-   3. Answer  : Claude writes from the retrieved chunks when the page runs
-                inside Claude (artifact `sample`); everywhere else the
-                answer is composed from the same chunks. Sources always shown.
+   3. Answer  : in the language selected with EN/DE. Claude writes from the
+                retrieved chunks when the page runs inside Claude (artifact
+                `sample`); everywhere else the answer is composed from the
+                same chunks. Sources always shown.
    ════════════════════════════════════════════════════════════════════ */
 const QBot = (() => {
+  const DE = () => currentLang === 'DE';
+  const T = (en, de) => DE() ? de : en;
+
   const KNOWLEDGE = [
-    ['What this app is', 'Quellberg Invoice Review is an accounts-payable assistant for Quellberg GmbH, a lemonade maker in Passau. Supplier receipts (PDFs and photos) are uploaded, read, checked against the open purchase orders in bestellungen.csv and against the rest of the batch, and each one gets a verdict: Approve, Hold or Critical. Nothing is pre-loaded: every result comes from an uploaded document.', 'Was ist die App, Zweck, Rechnungsprüfung'],
-    ['Agent pipeline', 'Each document runs through six steps. READER: renders the PDF and extracts the text layer (or OCR for photos) into fields and line items. VALIDATION: checks arithmetic, VAT, mandatory fields and the purchase order. IBAN RING: validates the IBAN checksum and looks for the same account on other vendors\' documents. VERDICT: rule-based decision, no LLM. AUDIT TRAIL: timestamped log of every step. EMAIL: drafts a query to the vendor.', 'Pipeline, Agenten, Schritte, workflow, how does it work'],
-    ['How the verdict is decided', 'The verdict is deterministic. Any blocking error (shared IBAN, invalid IBAN, duplicate, not an invoice, arithmetic or VAT error, unknown PO) gives CRITICAL: do not pay. Any warning (no PO, items not ordered, quantity or price above the order, missing mandatory fields) gives HOLD: clarify before paying. No findings gives APPROVE. No language model is involved in the verdict, so the same document always gets the same result.', 'Urteil, Entscheidung, approve hold critical, genehmigen, kritisch'],
-    ['Purchase orders (bestellungen.csv)', 'The open orders come from bestellungen.csv (columns Bestellnummer; Lieferant; Artikel; Menge; Einzelpreis_netto_EUR). It is built in with 9 orders and can be replaced by dropping another CSV on the upload area. Each invoice is matched by its QB- order number: vendor, ordered article, quantity, unit price and total order value are compared. Items on the invoice that are not on the order are flagged.', 'Bestellung, PO, Bestellnummer, order'],
-    ['IBAN ring (shared bank accounts)', 'Independent suppliers never share a bank account. When the same IBAN appears on documents from different companies, every one of those documents is Critical (possible business email compromise / invoice fraud). The ring is recomputed on every upload: the IBAN Ring tab lists every connected document with company, invoice number, file, date and amount, plus all shared accounts in the batch. The IBAN checksum (ISO 13616 mod-97) is also verified; a single wrong digit fails it.', 'Bankverbindung, Konto, geteilt, Betrug, fraud'],
-    ['Duplicate invoices', 'An invoice is a duplicate when the same vendor sends the same invoice number again, or the same order number with the same amount. The later one is Critical (do not pay twice), the earlier one gets a warning.', 'Doppelte Rechnung, Doppelberechnung'],
-    ['Delivery notes and quotes', 'A Lieferschein (delivery note) or Angebot (quote) is not a payable invoice. Both are Critical with the action to request the real invoice. Credit notes (Gutschrift) are routed to credit processing.', ''],
-    ['Mandatory invoice fields (§14 UStG)', 'German VAT law (§14 Abs. 4 UStG) requires on an invoice: invoice number, invoice date, the supplier\'s tax number or VAT ID, the line items, net amount, VAT amount and rate, and gross total. Missing items give a Hold because input VAT cannot be reclaimed.', 'Pflichtangaben, Steuernummer'],
-    ['VAT check and reverse charge', 'VAT is recomputed as net × rate (19 % standard, 7 % for food) and compared with the printed amount, tolerance €0.02. Net + VAT must equal the gross total. Foreign EU suppliers with reverse charge (§13b UStG) correctly show 0 % VAT; Quellberg self-assesses.', 'Umsatzsteuer, MwSt, Mehrwertsteuer'],
-    ['Photos and scans (OCR)', 'Photos and scanned PDFs have no text layer. The browser version reads them with built-in OCR (Tesseract.js, German model, runs offline); the arithmetic checks catch misread digits. In the Claude Skill, Claude reads the image instead.', 'Foto, Scan, Bild, OCR, Texterkennung'],
-    ['Email to the vendor', 'The Email tab drafts a letter to the vendor in German or English with one paragraph per finding and the real numbers. It never names other companies that share an IBAN; that stays in an internal note. Approved invoices get a payment advice.', 'E-Mail, Brief, Lieferant anschreiben'],
-    ['How to use the app', 'Drop PDF invoices, photos or a purchase-order CSV on the upload area (or click Browse). Select a document in the queue to see it on the left with highlighted fields; the tabs on the right show Extracted Fields, Validation, IBAN Ring, Verdict, Audit Trail and Email. Filter the queue by status, search by vendor or number, switch EN/DE and light/dark at the top. Keyboard: ←/→ previous/next, 1-3 tabs, ? help.', 'Bedienung, hochladen, upload'],
-    ['Exposure bar', 'At the bottom right: Tonight = gross total of all checked documents, IBAN risk = total on documents with a shared or invalid IBAN, Released = total of approved documents.', ''],
-    ['The Claude Skill and evaluation', 'The repository also contains a Claude Skill (skill/ folder: SKILL.md plus Python scripts extract.py, rules.py, review.py) that runs the same checks on a whole folder and writes results.csv, report.md and results.json. eval/ measures quality: 16/16 decisions on the test receipts and 13/13 on generated unseen receipts with planted errors.', ''],
-    ['Privacy and limits', 'Everything runs in the browser: documents are not uploaded to a server. State resets on reload. Limits: rule-based layout parsing for German and English invoices, no vendor master or payment history, no ERP connection.', ''],
-    ['This assistant', 'This assistant answers from retrieved facts only: the app documentation above and the documents in the current batch. When the page runs inside Claude, Claude writes the answer from those facts; otherwise the answer is assembled directly from them. Sources are listed under each answer.', ''],
+    { en: ['What this app is', 'Quellberg Invoice Review is an accounts-payable assistant for Quellberg GmbH, a lemonade maker in Passau. Supplier receipts (PDFs and photos) are uploaded, read, checked against the open purchase orders in bestellungen.csv and against the rest of the batch, and each one gets a verdict: Approve, Hold or Critical. Nothing is pre-loaded: every result comes from an uploaded document.'],
+      de: ['Was diese App ist', 'Quellberg Invoice Review ist ein Assistent für die Kreditorenbuchhaltung der Quellberg GmbH, einer Limonadenmanufaktur in Passau. Lieferantenbelege (PDFs und Fotos) werden hochgeladen, gelesen, gegen die offenen Bestellungen aus bestellungen.csv und gegen den restlichen Stapel geprüft und erhalten ein Urteil: Genehmigen, Halten oder Kritisch. Nichts ist vorgeladen: jedes Ergebnis stammt aus einem hochgeladenen Beleg.'],
+      kw: 'app purpose Zweck Rechnungsprüfung about' },
+    { en: ['Agent pipeline', 'Each document runs through six steps. READER: renders the PDF and extracts the text layer (or OCR for photos) into fields and line items. VALIDATION: checks arithmetic, VAT, mandatory fields and the purchase order. IBAN RING: validates the IBAN checksum and looks for the same account on other vendors\' documents. VERDICT: rule-based decision, no LLM. AUDIT TRAIL: timestamped log of every step. EMAIL: drafts a query to the vendor.'],
+      de: ['Agenten-Pipeline', 'Jeder Beleg durchläuft sechs Schritte. LESER: rendert das PDF und liest die Textebene (bei Fotos per OCR) in Felder und Positionen. PRÜFUNG: prüft Rechnung, Umsatzsteuer, Pflichtangaben und Bestellung. IBAN-RING: prüft die IBAN-Prüfsumme und sucht dasselbe Konto auf Belegen anderer Lieferanten. URTEIL: regelbasierte Entscheidung, ohne KI. PRÜFPROTOKOLL: Zeitstempel für jeden Schritt. E-MAIL: entwirft eine Rückfrage an den Lieferanten.'],
+      kw: 'pipeline Agenten Schritte workflow how does it work wie funktioniert' },
+    { en: ['How the verdict is decided', 'The verdict is deterministic. Any blocking error (shared IBAN, invalid IBAN, duplicate, not an invoice, arithmetic or VAT error, unknown PO) gives CRITICAL: do not pay. Any warning (no PO, items not ordered, quantity or price above the order, missing mandatory fields) gives HOLD: clarify before paying. No findings gives APPROVE. No language model is involved in the verdict, so the same document always gets the same result.'],
+      de: ['Wie das Urteil entsteht', 'Das Urteil ist deterministisch. Jeder blockierende Fehler (geteilte IBAN, ungültige IBAN, Doppelrechnung, keine Rechnung, Rechen- oder Steuerfehler, unbekannte Bestellung) ergibt KRITISCH: nicht zahlen. Jede Warnung (keine Bestellung, nicht bestellte Positionen, Menge oder Preis über der Bestellung, fehlende Pflichtangaben) ergibt HALTEN: vor der Zahlung klären. Ohne Befund: GENEHMIGEN. Am Urteil ist kein Sprachmodell beteiligt, derselbe Beleg erhält also immer dasselbe Ergebnis.'],
+      kw: 'verdict Urteil Entscheidung decided entschieden approve hold critical genehmigen halten kritisch' },
+    { en: ['Purchase orders (bestellungen.csv)', 'The open orders come from bestellungen.csv (columns Bestellnummer; Lieferant; Artikel; Menge; Einzelpreis_netto_EUR). It is built in with 9 orders and can be replaced by dropping another CSV on the upload area. Each invoice is matched by its QB- order number: vendor, ordered article, quantity, unit price and total order value are compared. Items on the invoice that are not on the order are flagged.'],
+      de: ['Bestellungen (bestellungen.csv)', 'Die offenen Bestellungen stammen aus bestellungen.csv (Spalten Bestellnummer; Lieferant; Artikel; Menge; Einzelpreis_netto_EUR). Sie ist mit 9 Bestellungen eingebaut und lässt sich ersetzen, indem man eine andere CSV auf den Upload-Bereich zieht. Jede Rechnung wird über ihre QB-Bestellnummer zugeordnet: Lieferant, bestellter Artikel, Menge, Einzelpreis und Bestellwert werden verglichen. Positionen, die nicht bestellt wurden, werden markiert.'],
+      kw: 'purchase order PO Bestellung Bestellnummer csv' },
+    { en: ['IBAN ring (shared bank accounts)', 'Independent suppliers never share a bank account. When the same IBAN appears on documents from different companies, every one of those documents is Critical (possible business email compromise / invoice fraud). The ring is recomputed on every upload: the IBAN Ring tab lists every connected document with company, invoice number, file, date and amount, plus all shared accounts in the batch. The IBAN checksum (ISO 13616 mod-97) is also verified; a single wrong digit fails it.'],
+      de: ['IBAN-Ring (geteilte Bankkonten)', 'Unabhängige Lieferanten teilen sich nie ein Bankkonto. Steht dieselbe IBAN auf Belegen verschiedener Unternehmen, ist jeder dieser Belege kritisch (möglicher Rechnungsbetrug / Business E-Mail Compromise). Der Ring wird bei jedem Upload neu berechnet: der Reiter „IBAN Ring“ zeigt jeden verbundenen Beleg mit Unternehmen, Rechnungsnummer, Datei, Datum und Betrag sowie alle geteilten Konten im Stapel. Zusätzlich wird die IBAN-Prüfsumme (ISO 13616, mod 97) geprüft; eine einzige falsche Ziffer fällt auf.'],
+      kw: 'IBAN ring Bankverbindung Konto geteilt shared Betrug fraud' },
+    { en: ['Duplicate invoices', 'An invoice is a duplicate when the same vendor sends the same invoice number again, or the same order number with the same amount. The later one is Critical (do not pay twice), the earlier one gets a warning.'],
+      de: ['Doppelte Rechnungen', 'Eine Rechnung ist doppelt, wenn derselbe Lieferant dieselbe Rechnungsnummer erneut schickt oder dieselbe Bestellnummer mit demselben Betrag. Die spätere ist kritisch (nicht zweimal zahlen), die frühere erhält eine Warnung.'],
+      kw: 'duplicate Doppelte Rechnung Doppelberechnung twice zweimal' },
+    { en: ['Delivery notes and quotes', 'A Lieferschein (delivery note) or Angebot (quote) is not a payable invoice. Both are Critical with the action to request the real invoice. Credit notes (Gutschrift) are routed to credit processing.'],
+      de: ['Lieferscheine und Angebote', 'Ein Lieferschein oder ein Angebot ist keine zahlbare Rechnung. Beide sind kritisch; die Maßnahme ist, die eigentliche Rechnung anzufordern. Gutschriften gehen in die Gutschriftenbearbeitung.'],
+      kw: 'Lieferschein Angebot delivery note quote Gutschrift' },
+    { en: ['Mandatory invoice fields (§14 UStG)', 'German VAT law (§14 Abs. 4 UStG) requires on an invoice: invoice number, invoice date, the supplier\'s tax number or VAT ID, the line items, net amount, VAT amount and rate, and gross total. Missing items give a Hold because input VAT cannot be reclaimed.'],
+      de: ['Pflichtangaben (§14 UStG)', 'Nach § 14 Abs. 4 UStG muss eine Rechnung enthalten: Rechnungsnummer, Rechnungsdatum, Steuernummer oder USt-IdNr. des Lieferanten, die Positionen, Nettobetrag, Steuerbetrag und Steuersatz sowie den Bruttobetrag. Fehlt etwas, wird der Beleg gehalten, weil die Vorsteuer nicht abgezogen werden kann.'],
+      kw: 'Pflichtangaben mandatory fields Steuernummer 14 UStG' },
+    { en: ['VAT check and reverse charge', 'VAT is recomputed as net × rate (19 % standard, 7 % for food) and compared with the printed amount, tolerance €0.02. Net + VAT must equal the gross total. Foreign EU suppliers with reverse charge (§13b UStG) correctly show 0 % VAT; Quellberg self-assesses.'],
+      de: ['Umsatzsteuer und Reverse Charge', 'Die Umsatzsteuer wird als Netto × Steuersatz (19 % regulär, 7 % für Lebensmittel) nachgerechnet und mit dem ausgewiesenen Betrag verglichen, Toleranz 0,02 €. Netto + Steuer muss den Bruttobetrag ergeben. Ausländische EU-Lieferanten mit Reverse Charge (§ 13b UStG) weisen korrekt 0 % aus; Quellberg führt die Steuer selbst ab.'],
+      kw: 'VAT Umsatzsteuer MwSt Mehrwertsteuer reverse charge 13b' },
+    { en: ['Photos and scans (OCR)', 'Photos and scanned PDFs have no text layer. The browser version reads them with built-in OCR (Tesseract.js, German model, runs offline); the arithmetic checks catch misread digits. In the Claude Skill, Claude reads the image instead.'],
+      de: ['Fotos und Scans (OCR)', 'Fotos und gescannte PDFs haben keine Textebene. Die Browser-Version liest sie mit eingebauter Texterkennung (Tesseract.js, deutsches Modell, offline); die Rechenprüfungen fangen falsch gelesene Ziffern ab. Im Claude Skill liest stattdessen Claude das Bild.'],
+      kw: 'Foto photo scan Bild OCR Texterkennung image' },
+    { en: ['Email to the vendor', 'The Email tab drafts a letter to the vendor in German or English with one paragraph per finding and the real numbers. It never names other companies that share an IBAN; that stays in an internal note. Approved invoices get a payment advice.'],
+      de: ['E-Mail an den Lieferanten', 'Der Reiter „E-Mail“ entwirft ein Schreiben an den Lieferanten auf Deutsch oder Englisch, mit einem Absatz pro Befund und den echten Zahlen. Andere Unternehmen mit derselben IBAN werden nie genannt; das steht nur in einer internen Notiz. Genehmigte Rechnungen erhalten ein Zahlungsavis.'],
+      kw: 'email E-Mail mail Brief letter Lieferant anschreiben' },
+    { en: ['How to use the app', 'Drop PDF invoices, photos or a purchase-order CSV on the upload area (or click Browse). Select a document in the queue to see it with highlighted fields; the tabs on the right show Extracted Fields, Validation, IBAN Ring, Verdict, Audit Trail and Email. Filter the queue by status, search by vendor or number, switch EN/DE and light/dark at the top. Keyboard: ←/→ previous/next, 1–3 tabs, ? help.'],
+      de: ['Bedienung', 'PDF-Rechnungen, Fotos oder eine Bestell-CSV auf den Upload-Bereich ziehen (oder „Durchsuchen“). Einen Beleg in der Warteschlange wählen, um ihn mit markierten Feldern zu sehen; die Reiter rechts zeigen Extrahierte Felder, Prüfung, IBAN Ring, Urteil, Prüfprotokoll und E-Mail. Oben nach Status filtern, nach Lieferant oder Nummer suchen, EN/DE und hell/dunkel umschalten. Tastatur: ←/→ vorheriger/nächster, 1–3 Reiter, ? Hilfe.'],
+      kw: 'use how to upload hochladen Bedienung bedienen' },
+    { en: ['Exposure bar', 'At the bottom right: Tonight = gross total of all checked documents, IBAN risk = total on documents with a shared or invalid IBAN, Released = total of approved documents.'],
+      de: ['Risiko-Leiste', 'Unten rechts: Heute Nacht = Bruttosumme aller geprüften Belege, IBAN-Risiko = Summe der Belege mit geteilter oder ungültiger IBAN, Freigegeben = Summe der genehmigten Belege.'],
+      kw: 'exposure tonight released Risiko freigegeben' },
+    { en: ['The Claude Skill and evaluation', 'The repository also contains a Claude Skill (skill/ folder: SKILL.md plus Python scripts extract.py, rules.py, review.py) that runs the same checks on a whole folder and writes results.csv, report.md and results.json. eval/ measures quality: 16/16 decisions on the test receipts and 13/13 on generated unseen receipts with planted errors.'],
+      de: ['Der Claude Skill und die Auswertung', 'Das Repository enthält außerdem einen Claude Skill (Ordner skill/: SKILL.md und die Python-Skripte extract.py, rules.py, review.py), der dieselben Prüfungen auf einen ganzen Ordner anwendet und results.csv, report.md und results.json schreibt. eval/ misst die Qualität: 16/16 richtige Entscheidungen bei den Testbelegen und 13/13 bei neu erzeugten, unbekannten Belegen mit eingebauten Fehlern.'],
+      kw: 'skill python evaluation Auswertung quality Qualität' },
+    { en: ['Privacy and limits', 'Everything runs in the browser: documents are not uploaded to a server. State resets on reload. Limits: rule-based layout parsing for German and English invoices, no vendor master or payment history, no ERP connection.'],
+      de: ['Datenschutz und Grenzen', 'Alles läuft im Browser: Belege werden nicht auf einen Server hochgeladen. Beim Neuladen ist alles zurückgesetzt. Grenzen: regelbasiertes Lesen deutscher und englischer Rechnungslayouts, keine Lieferantenstammdaten oder Zahlungshistorie, keine ERP-Anbindung.'],
+      kw: 'privacy Datenschutz limits Grenzen server' },
+    { en: ['This assistant', 'This assistant answers from retrieved facts only: the app documentation above and the documents in the current batch. When the page runs inside Claude, Claude writes the answer from those facts; otherwise the answer is assembled directly from them. Sources are listed under each answer.'],
+      de: ['Dieser Assistent', 'Dieser Assistent antwortet nur aus gefundenen Fakten: der App-Dokumentation und den Belegen im aktuellen Stapel. Läuft die Seite in Claude, schreibt Claude die Antwort aus diesen Fakten; sonst wird sie direkt daraus zusammengesetzt. Unter jeder Antwort stehen die Quellen.'],
+      kw: 'assistant Assistent chatbot KI AI' },
   ];
 
   const STOP = new Set(('the a an and or of to in on for is are was be with by at as it this that from what which who why how does do did can i me my you your show list tell about please give all any ' +
-    'der die das und oder von zu im in auf für ist sind war mit bei als es dies was welche welcher wer warum wie wo kann ich mir mein du dein zeige liste alle ein eine den dem des').split(' '));
+    'der die das und oder von zu im in auf für fuer ist sind war mit bei als es dies was welche welcher wer warum wie wo kann ich mir mein du dein zeige liste alle ein eine den dem des mir bitte').split(' '));
   const fold = s => (s || '').toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss');
   const tok = s => fold(s).replace(/[-_]/g, ' ').split(/[^a-z0-9§%]+/).filter(t => t.length > 1 && !STOP.has(t));
-  const eu = n => n == null ? '—' : '€ ' + fmt(n);
-  const label = s => s === 'approve' ? 'Approve' : s === 'critical' ? 'Critical' : s === 'hold' ? 'Hold' : 'Processing';
+  const num = (n, d = 2) => n.toLocaleString(DE() ? 'de-DE' : 'en-GB', { minimumFractionDigits: d, maximumFractionDigits: n !== 0 && Math.abs(n) < 0.1 ? 4 : d });
+  const eu = n => n == null ? '—' : DE() ? num(n) + ' €' : '€' + num(n);
+  const qty = n => n == null ? '—' : n.toLocaleString(DE() ? 'de-DE' : 'en-GB');
+  const dt = s => !s ? '—' : DE() ? s.split('-').reverse().join('.') : s;
+  const label = s => ({ approve: T('Approve', 'Genehmigt'), critical: T('Critical', 'Kritisch'), hold: T('Hold', 'Halten') })[s] || T('Processing', 'In Bearbeitung');
   const done = () => invoices.filter(i => i._f && !i._runSteps);
 
-  /* ── 1. index ── */
+  /* findings in the selected language (the engine writes English) */
+  function finding(c, i) {
+    if (!DE()) return { t: c.t, d: c.d };
+    const f = i._f || {};
+    const pm = f.poMatch ? f.poMatch.lines : [];
+    const others = ringOf(i);
+    const map = {
+      doctype: () => f.noText ? ['Nicht lesbar', 'Keine Textebene gefunden, auch nicht per OCR. Manuell prüfen oder das PDF anfordern.']
+        : f.docKind === 'delivery' ? ['Lieferschein, keine Rechnung', 'Ein Lieferschein ist keine Zahlungsgrundlage. Als Wareneingang ablegen und die Rechnung anfordern.']
+        : f.docKind === 'quote' || f.notInvoiceNote ? ['Angebot, keine Rechnung', 'Das Dokument sagt selbst, dass es keine Rechnung ist. Nicht zahlen.']
+        : c.s === 'ok' ? ['Belegart', `${f.docType} — zahlbarer Beleg`] : ['Unbekannte Belegart', 'Der Beleg ist nicht eindeutig als Rechnung erkennbar.'],
+      mandatory: () => {
+        const priced = (f.lines || []).filter(l => l.t != null);
+        const miss = [[!f.invNum, 'Rechnungsnummer'], [!f.date, 'Rechnungsdatum'], [!f.taxId, 'Steuernummer/USt-IdNr.'], [f.gross == null, 'Bruttobetrag'],
+          [f.vat == null && !f.reverseCharge, 'Steuerbetrag'], [!priced.length, 'Einzelpreise'], [!f.iban, 'IBAN']].filter(x => x[0]).map(x => x[1]);
+        return c.s === 'ok' ? ['Pflichtangaben (§14 UStG)', 'Alle vorhanden'] : ['Pflichtangaben fehlen (§14 UStG)', 'Es fehlt: ' + miss.join(', ')];
+      },
+      math: () => {
+        const sum = Math.round((f.lines || []).filter(l => l.t != null).reduce((s, l) => s + l.t, 0) * 100) / 100;
+        return c.s === 'ok' ? ['Rechnerische Prüfung', `Positionen ergeben ${eu(sum)} = Nettobetrag`]
+          : ['Rechenfehler', f.net != null && Math.abs(sum - f.net) > .02 ? `Positionen ergeben ${eu(sum)}, ausgewiesen sind netto ${eu(f.net)} (Differenz ${eu(Math.round((f.net - sum) * 100) / 100)})` : 'Menge × Einzelpreis ergibt nicht den Positionsbetrag'];
+      },
+      vat: () => { const exp = Math.round((f.net || 0) * (f.vatRate || 0)) / 100;
+        return c.s === 'ok' ? ['Umsatzsteuer', f.reverseCharge ? 'Reverse Charge (§ 13b UStG), 0 % korrekt' : `${eu(f.net)} × ${f.vatRate} % = ${eu(exp)}`]
+          : ['Umsatzsteuer falsch', `${eu(f.net)} × ${f.vatRate} % = ${eu(exp)}, ausgewiesen ${eu(f.vat)} (Differenz ${eu(Math.round((f.vat - exp) * 100) / 100)})`]; },
+      gross: () => c.s === 'ok' ? ['Bruttobetrag', eu(f.gross)] : ['Bruttobetrag falsch', `Netto + Steuer = ${eu(Math.round(((f.net || 0) + (f.vat || 0)) * 100) / 100)}, ausgewiesen ${eu(f.gross)}`],
+      po: () => !f.po ? ['Keine Bestellung', 'Keine Quellberg-Bestellnummer auf dem Beleg; Freigabe durch die Budgetverantwortlichen nötig.']
+        : c.s === 'ok' ? ['Bestellung', `${f.po} gefunden`] : ['Bestellnummer passt nicht', `${f.po} ist unbekannt oder gehört zu einem anderen Lieferanten`],
+      po_value: () => ['Bestellung ohne Wertfreigabe', `${f.po} ist eine Rahmenbestellung über 0,00 €; netto ${eu(f.net)} ohne Budgetfreigabe.`],
+      po_qty: () => { const l = pm.find(l => l.invQty > l.poQty);
+        return c.s === 'ok' ? ['Menge', 'entspricht der Bestellung'] : ['Mehr berechnet als bestellt', l ? `${l.article}: bestellt ${qty(l.poQty)}, berechnet ${qty(l.invQty)} (+${qty(l.invQty - l.poQty)})` : c.d]; },
+      po_price: () => { const l = pm.find(l => l.invUnit != null && l.poUnit > 0 && Math.abs(l.invUnit - l.poUnit) / l.poUnit > .005);
+        return c.s === 'ok' ? ['Einzelpreis', 'entspricht der Bestellung'] : ['Einzelpreis weicht ab', l ? `${l.article}: Bestellung ${eu(l.poUnit)}, berechnet ${eu(Math.round(l.invUnit * 10000) / 10000)}` : c.d]; },
+      po_extra: () => { const hit = new Set(pm.flatMap(l => l.hits));
+        return ['Nicht bestellte Positionen', (f.lines || []).filter(l => !hit.has(l.pos)).map(l => `Pos. ${l.pos} „${l.d}“${l.t != null ? ' ' + eu(l.t) : ''}`).join('; ')]; },
+      po_total: () => { const o = APEngine.getPOs()[f.po]; const v = o ? o.lines.reduce((s, l) => s + l.qty * l.unit, 0) : null;
+        return ['Netto über Bestellwert', v != null ? `Bestellwert ${eu(v)}, Beleg netto ${eu(f.net)} (+${eu(Math.round((f.net - v) * 100) / 100)})` : c.d]; },
+      iban_fmt: () => c.s === 'ok' ? ['IBAN-Prüfsumme', 'gültig (ISO 13616, mod 97)'] : ['IBAN ungültig', `${i.iban}: Prüfsumme (mod 97) stimmt nicht — Konto existiert so nicht.`],
+      iban_ring: () => c.s === 'ok' ? ['IBAN einmalig', 'Kein anderer Lieferant im Stapel nutzt dieses Konto'] : ['IBAN bei anderen Lieferanten', `Dasselbe Konto steht auf Belegen von ${new Set(others.map(o => o.vendor)).size} weiteren Unternehmen: ${[...new Set(others.map(o => o.vendor))].join(', ')}. Vor jeder Zahlung telefonisch bestätigen lassen.`],
+      duplicate: () => c.s === 'ok' ? ['Dublettenprüfung', 'Keine doppelte Rechnung'] : c.s === 'err' ? ['Doppelte Rechnung', 'Gleicher Lieferant, gleiche Bestellung und gleicher Betrag wie eine frühere Rechnung — nicht zweimal zahlen.'] : ['Spätere Doublette vorhanden', 'Eine spätere Rechnung wiederholt diese — nur einmal zahlen.'],
+      ocr: () => ['Per OCR gelesen', `Foto/Scan per Texterkennung gelesen (Konfidenz ${Math.round(f.ocrConf || 0)} %)`],
+    };
+    const r = map[c.id] ? map[c.id]() : null;
+    return r ? { t: r[0], d: r[1] } : { t: c.t, d: c.d };
+  }
+  const issues = i => [...i.checks.filter(c => c.s === 'err'), ...i.checks.filter(c => c.s === 'warn')];
+
+  /* ── 1. index (both languages indexed, so German and English questions both match) ── */
   function buildIndex() {
-    const chunks = KNOWLEDGE.map(([title, text, kw]) => ({ kind: 'doc', title, text, kw }));
+    const chunks = KNOWLEDGE.map(k => ({ kind: 'doc', title: T(k.en[0], k.de[0]), text: T(k.en[1], k.de[1]), search: k.en.join(' ') + ' ' + k.de.join(' ') + ' ' + k.kw }));
     const D = done();
     if (D.length) {
       const n = s => D.filter(i => i.status === s).length;
-      chunks.push({ kind: 'batch', title: 'Current batch', text:
-        `${D.length} documents checked: ${n('approve')} approve, ${n('hold')} hold, ${n('critical')} critical. ` +
-        `Gross total ${eu(D.reduce((s, i) => s + (i.gross || 0), 0))}; at risk from shared or invalid IBANs ${eu(D.filter(i => i.ibanShared || i.ibanInvalid).reduce((s, i) => s + (i.gross || 0), 0))}. ` +
-        `Vendors: ${[...new Set(D.map(i => i.vendor))].join(', ')}. summary overview Stapel Übersicht` });
+      chunks.push({ kind: 'batch', title: T('Current batch', 'Aktueller Stapel'), text: T(
+        `${D.length} documents checked: ${n('approve')} approve, ${n('hold')} hold, ${n('critical')} critical. Gross total ${eu(D.reduce((s, i) => s + (i.gross || 0), 0))}; at risk from shared or invalid IBANs ${eu(D.filter(i => i.ibanShared || i.ibanInvalid).reduce((s, i) => s + (i.gross || 0), 0))}. Vendors: ${[...new Set(D.map(i => i.vendor))].join(', ')}.`,
+        `${D.length} Belege geprüft: ${n('approve')} genehmigt, ${n('hold')} halten, ${n('critical')} kritisch. Bruttosumme ${eu(D.reduce((s, i) => s + (i.gross || 0), 0))}; Risiko durch geteilte oder ungültige IBANs ${eu(D.filter(i => i.ibanShared || i.ibanInvalid).reduce((s, i) => s + (i.gross || 0), 0))}. Lieferanten: ${[...new Set(D.map(i => i.vendor))].join(', ')}.`),
+        search: 'summary overview Stapel Übersicht batch' });
     }
     for (const i of D) {
-      const issues = i.checks.filter(c => c.s !== 'ok');
-      chunks.push({ kind: 'invoice', id: i.id, title: `${i.vendor} · ${i.invNum}`, inv: i, text:
-        `Document ${i.file}: ${i._f.docType || 'unknown type'} from ${i.vendor}${i.addr ? ' (' + i.addr + ')' : ''}, number ${i.invNum}, date ${i.date || '—'}, ` +
-        `order ${i.po || 'none'}, net ${eu(i.net)}, VAT ${eu(i.vat)}${i.vatRate != null ? ' (' + i.vatRate + ' %)' : ''}, gross ${eu(i.gross)}, IBAN ${i.iban || 'none'}. ` +
-        `Verdict ${label(i.status)}. ${i.verdict} ` +
-        (issues.length ? 'Findings: ' + issues.map(c => `${c.t}: ${c.d}`).join(' | ') : 'No findings.') +
-        ` Line items: ${i.lines.map(l => l.d).join('; ')}.` });
+      const fs = issues(i).map(c => finding(c, i));
+      chunks.push({ kind: 'invoice', id: i.id, title: `${i.vendor} · ${i.invNum}`, inv: i, text: T(
+        `Document ${i.file}: ${i._f.docType || 'unknown type'} from ${i.vendor}${i.addr ? ' (' + i.addr + ')' : ''}, number ${i.invNum}, date ${dt(i.date)}, order ${i.po || 'none'}, net ${eu(i.net)}, VAT ${eu(i.vat)}${i.vatRate != null ? ' (' + i.vatRate + ' %)' : ''}, gross ${eu(i.gross)}, IBAN ${i.iban || 'none'}. Verdict ${label(i.status)}. ` +
+          (fs.length ? 'Findings: ' + fs.map(x => `${x.t}: ${x.d}`).join(' | ') : 'No findings.') + ` Line items: ${i.lines.map(l => l.d).join('; ')}.`,
+        `Beleg ${i.file}: ${i._f.docType || 'unbekannte Belegart'} von ${i.vendor}${i.addr ? ' (' + i.addr + ')' : ''}, Nummer ${i.invNum}, Datum ${dt(i.date)}, Bestellung ${i.po || 'keine'}, netto ${eu(i.net)}, USt ${eu(i.vat)}${i.vatRate != null ? ' (' + i.vatRate + ' %)' : ''}, brutto ${eu(i.gross)}, IBAN ${i.iban || 'keine'}. Urteil ${label(i.status)}. ` +
+          (fs.length ? 'Befunde: ' + fs.map(x => `${x.t}: ${x.d}`).join(' | ') : 'Keine Befunde.') + ` Positionen: ${i.lines.map(l => l.d).join('; ')}.`),
+        search: i.checks.map(c => c.t + ' ' + c.d).join(' ') + ' ' + i.file });
     }
     for (const r of ibanRingsInBatch()) {
-      chunks.push({ kind: 'ring', title: `Shared IBAN ${APEngine.fmtIban(r.iban)}`, ring: r, text:
-        `Shared bank account ${APEngine.fmtIban(r.iban)} (${r.iban}) used by ${r.vendorCount} companies on ${r.docs.length} documents, total ${eu(r.total)}: ` +
-        r.byVendor.map(v => `${v.vendor} (${v.docs.map(d => d.invNum + ', ' + d.file).join('; ')})`).join('; ') + '. IBAN ring Konto geteilt' });
+      chunks.push({ kind: 'ring', title: T('Shared IBAN ', 'Geteilte IBAN ') + APEngine.fmtIban(r.iban), ring: r, text: T(
+        `Bank account ${APEngine.fmtIban(r.iban)} used by ${r.vendorCount} companies on ${r.docs.length} documents, total ${eu(r.total)}: `,
+        `Konto ${APEngine.fmtIban(r.iban)} wird von ${r.vendorCount} Unternehmen auf ${r.docs.length} Belegen genutzt, Summe ${eu(r.total)}: `) +
+        r.byVendor.map(v => `${v.vendor} (${v.docs.map(d => d.invNum + ', ' + d.file).join('; ')})`).join('; ') + '.',
+        search: r.iban + ' IBAN ring shared Konto geteilt Bank' });
     }
     for (const [po, o] of Object.entries(APEngine.getPOs())) {
       const refs = D.filter(i => i.po === po);
-      chunks.push({ kind: 'po', title: `Order ${po}`, text:
-        `Purchase order ${po} for ${o.vendor}: ` + o.lines.map(l => `${l.article}, ${l.qty.toLocaleString('de-DE')} × ${APEngine.eur(l.unit)} €`).join('; ') +
-        `. Order value ${eu(o.lines.reduce((s, l) => s + l.qty * l.unit, 0))}. ` +
-        (refs.length ? `Referenced by: ${refs.map(i => `${i.invNum} (${label(i.status)})`).join(', ')}.` : 'No uploaded document references it yet.') + ' Bestellung' });
+      chunks.push({ kind: 'po', title: T('Order ', 'Bestellung ') + po, text:
+        T(`Purchase order ${po} for ${o.vendor}: `, `Bestellung ${po} bei ${o.vendor}: `) + o.lines.map(l => `${l.article}, ${qty(l.qty)} × ${eu(l.unit)}`).join('; ') +
+        T(`. Order value ${eu(o.lines.reduce((s, l) => s + l.qty * l.unit, 0))}. `, `. Bestellwert ${eu(o.lines.reduce((s, l) => s + l.qty * l.unit, 0))}. `) +
+        (refs.length ? T('Referenced by: ', 'Verwendet von: ') + refs.map(i => `${i.invNum} (${label(i.status)})`).join(', ') + '.' : T('No uploaded document references it yet.', 'Noch kein hochgeladener Beleg verweist darauf.')),
+        search: po + ' order Bestellung PO ' + o.vendor });
     }
-    // BM25 stats
-    chunks.forEach(c => { c.toks = tok(c.title + ' ' + c.text + ' ' + (c.kw || '')); c.tf = {}; c.toks.forEach(t => c.tf[t] = (c.tf[t] || 0) + 1); });
+    chunks.forEach(c => { c.toks = tok(c.title + ' ' + c.text + ' ' + (c.search || '')); c.tf = {}; c.toks.forEach(t => c.tf[t] = (c.tf[t] || 0) + 1); });
     const df = {}; chunks.forEach(c => Object.keys(c.tf).forEach(t => df[t] = (df[t] || 0) + 1));
     const avg = chunks.reduce((s, c) => s + c.toks.length, 0) / chunks.length;
     return { chunks, df, avg, N: chunks.length };
@@ -2935,84 +3017,99 @@ const QBot = (() => {
     const has = re => re.test(fq);
     const src = [];
     const docLine = i => { src.push(i); return `**${i.vendor}** · ${i.invNum} — **${label(i.status)}**${i.gross != null ? ', ' + eu(i.gross) : ''}`; };
-    const reasons = i => [...i.checks.filter(c => c.s === 'err'), ...i.checks.filter(c => c.s === 'warn')].map(c => `- ${c.s === 'err' ? '✗' : '!'} **${c.t}** — ${c.d}`).join('\n') || '- All checks passed.';
-    const statusOf = has(/critical|kritisch|block|do not pay/) ? 'critical' : has(/\bhold\b|halt|pruefung|review|clarif/) ? 'hold' : has(/approv|genehm|freigeg|clean|ok\b|pay/) ? 'approve' : null;
+    const reasons = i => issues(i).map(c => { const x = finding(c, i); return `- ${c.s === 'err' ? '✗' : '!'} **${x.t}** — ${x.d}`; }).join('\n') || T('- All checks passed.', '- Alle Prüfungen bestanden.');
+    const short = i => issues(i).slice(0, 3).map(c => finding(c, i).t).join(', ') || T('all checks passed', 'alle Prüfungen bestanden');
+    const statusOf = has(/critical|kritisch|block|do not pay|nicht zahlen/) ? 'critical' : has(/\bhold\b|\bhalt|pruefung|zurueckgehalten|review|clarif|klaer/) ? 'hold' : has(/approv|genehm|freigeg|clean|\bok\b|\bpay\b|zahlbar/) ? 'approve' : null;
 
-    if (!D.length && !R.hits.some(h => h.kind === 'doc')) return { text: 'No documents are in the queue yet. Drop PDF invoices or photos on the upload area and ask me again. I can also explain how the app works.', src };
-    if (has(/^(hi|hello|hey|hallo|moin|servus)\b|what can you|was kannst|help\b|hilfe/))
-      return { text: 'I can answer questions about this app and the documents you have uploaded, for example:\n- *Which invoices are critical?*\n- *Why is RE-5567 on hold?*\n- *Who shares an IBAN?*\n- *How much money is at risk?*\n- *What does QB-10405 cover?*\n- *How is the verdict decided?*', src };
+    if (!D.length && !R.hits.some(h => h.kind === 'doc')) return { text: T('No documents are in the queue yet. Drop PDF invoices or photos on the upload area and ask me again. I can also explain how the app works.', 'Es sind noch keine Belege in der Warteschlange. Ziehen Sie PDF-Rechnungen oder Fotos auf den Upload-Bereich und fragen Sie dann erneut. Ich kann auch erklären, wie die App funktioniert.'), src };
+    if (has(/^(hi|hello|hey|hallo|moin|servus|guten (tag|morgen|abend))\b|what can you|was kannst|help\b|hilfe/))
+      return { text: T('I can answer questions about this app and the documents you have uploaded, for example:\n- *Which invoices are critical?*\n- *Why is RE-5567 on hold?*\n- *Who shares an IBAN?*\n- *How much money is at risk?*\n- *What does QB-10405 cover?*\n- *How is the verdict decided?*',
+                       'Ich beantworte Fragen zu dieser App und zu Ihren hochgeladenen Belegen, zum Beispiel:\n- *Welche Rechnungen sind kritisch?*\n- *Warum ist RE-5567 nicht genehmigt?*\n- *Wer teilt sich eine IBAN?*\n- *Wie viel Geld ist gefährdet?*\n- *Was umfasst QB-10405?*\n- *Wie entsteht das Urteil?*'), src };
 
     // a specific document
     if (ent.docs.length && ent.docs.length <= 3) {
       const out = ent.docs.map(i => {
         if (has(/iban|bank|konto|account|ring|shared|geteilt/)) {
-          const ring = ibanDocs(i);
-          return `${docLine(i)}\nIBAN ${i.iban || 'none'} — ${i.ibanInvalid ? 'checksum fails, not a valid account' : i.ibanShared ? `shared with ${new Set(ring.filter(d => !d.sameVendor).map(d => d.vendor)).size} other compan${ring.length > 1 ? 'ies' : 'y'}` : ring.length ? 'also on other documents of the same vendor' : 'valid and unique in this batch'}.` +
-            (ring.length ? '\n' + ring.map(d => `- ${d.vendor} · ${d.invNum} · ${d.file}`).join('\n') : '');
+          const ring = ibanDocs(i), nOther = new Set(ring.filter(d => !d.sameVendor).map(d => d.vendor)).size;
+          const st = i.ibanInvalid ? T('checksum fails, not a valid account', 'Prüfsumme falsch, kein gültiges Konto')
+            : i.ibanShared ? T(`shared with ${nOther} other compan${nOther > 1 ? 'ies' : 'y'}`, `geteilt mit ${nOther} weiteren Unternehmen`)
+            : ring.length ? T('also on other documents of the same vendor', 'auch auf anderen Belegen desselben Lieferanten') : T('valid and unique in this batch', 'gültig und einmalig in diesem Stapel');
+          return `${docLine(i)}\nIBAN ${i.iban || T('none', 'keine')} — ${st}.` + (ring.length ? '\n' + ring.map(d => `- ${d.vendor} · ${d.invNum} · ${d.file}`).join('\n') : '');
         }
-        if (has(/mail|brief|schreib|letter|vendor query/)) {
+        if (has(/mail|brief|schreib|letter|anschreiben/)) {
           const m = buildVendorEmail(i, currentLang);
-          return `${docLine(i)}\nDrafted email — subject: *${m.subject}*. Open the **Email** tab to read, edit and copy it.`;
+          return `${docLine(i)}\n` + T(`Drafted email — subject: *${m.subject}*. Open the **Email** tab to read, edit and copy it.`, `E-Mail-Entwurf — Betreff: *${m.subject}*. Im Reiter **E-Mail** lesen, bearbeiten und kopieren.`);
         }
-        if (has(/line|position|item|artikel/)) return `${docLine(i)}\n` + i.lines.map(l => `- Pos ${l.pos} ${l.d}: ${l.q != null ? l.q.toLocaleString('de-DE') : '—'} × ${l.u != null ? APEngine.eur(l.u) : '—'} = ${l.t != null ? eu(l.t) : '—'}${l.extra ? ' *(not on the order)*' : ''}`).join('\n');
-        return `${docLine(i)}\n${i._f.docType || 'Document'} dated ${i.date || '—'}, order ${i.po || 'none'}, net ${eu(i.net)}, VAT ${eu(i.vat)}, IBAN ${i.iban || '—'}.\n${reasons(i)}`;
+        if (has(/line|position|item|artikel/)) return `${docLine(i)}\n` + i.lines.map(l => `- Pos ${l.pos} ${l.d}: ${qty(l.q)} × ${l.u != null ? eu(l.u) : '—'} = ${eu(l.t)}${l.extra ? T(' *(not on the order)*', ' *(nicht bestellt)*') : ''}`).join('\n');
+        return `${docLine(i)}\n` + T(`${i._f.docType || 'Document'} dated ${dt(i.date)}, ${i.po ? 'order ' + i.po : 'no order'}, net ${eu(i.net)}, VAT ${eu(i.vat)}, IBAN ${i.iban || '—'}.`,
+                                     `${i._f.docType || 'Beleg'} vom ${dt(i.date)}, ${i.po ? 'Bestellung ' + i.po : 'ohne Bestellung'}, netto ${eu(i.net)}, USt ${eu(i.vat)}, IBAN ${i.iban || '—'}.`) + `\n${reasons(i)}`;
       });
       return { text: out.join('\n\n'), src };
     }
 
     // shared IBANs / rings
-    if (has(/iban|ring|bank|konto|account|shared|geteilt|fraud|betrug|bec/)) {
+    if (has(/iban|ring|bank|konto|account|shared|geteilt|teilt|fraud|betrug|bec/)) {
       const rings = ibanRingsInBatch(), bad = D.filter(i => i.ibanInvalid), none = D.filter(i => !i.iban);
-      let t = rings.length ? rings.map(r => `**${APEngine.fmtIban(r.iban)}** is used by **${r.vendorCount} companies** on ${r.docs.length} documents (${eu(r.total)}):\n` +
-        r.byVendor.map(v => `- ${v.vendor} — ${v.docs.map(d => d.invNum).join(', ')}`).join('\n')).join('\n\n') : 'No bank account is shared between different companies in this batch.';
-      if (bad.length) t += `\n\nInvalid IBAN (checksum fails): ${bad.map(docLine).join('; ')}.`;
-      if (none.length) t += `\n\nNo IBAN on: ${none.map(i => `${i.vendor} · ${i.invNum}`).join('; ')}.`;
-      return { text: t + (rings.length ? '\n\nDo not pay any of these until each company has confirmed its bank details by phone, on a number you look up yourself.' : ''), src: src.concat(rings.flatMap(r => r.docs)) };
+      let t = rings.length ? rings.map(r => T(`**${APEngine.fmtIban(r.iban)}** is used by **${r.vendorCount} companies** on ${r.docs.length} documents (${eu(r.total)}):\n`,
+                                               `**${APEngine.fmtIban(r.iban)}** wird von **${r.vendorCount} Unternehmen** auf ${r.docs.length} Belegen genutzt (${eu(r.total)}):\n`) +
+        r.byVendor.map(v => `- ${v.vendor} — ${v.docs.map(d => d.invNum).join(', ')}`).join('\n')).join('\n\n')
+        : T('No bank account is shared between different companies in this batch.', 'In diesem Stapel teilen sich keine verschiedenen Unternehmen ein Bankkonto.');
+      if (bad.length) t += '\n\n' + T('Invalid IBAN (checksum fails): ', 'Ungültige IBAN (Prüfsumme falsch): ') + bad.map(docLine).join('; ') + '.';
+      if (none.length) t += '\n\n' + T('No IBAN on: ', 'Keine IBAN auf: ') + none.map(i => `${i.vendor} · ${i.invNum}`).join('; ') + '.';
+      if (rings.length) t += '\n\n' + T('Do not pay any of these until each company has confirmed its bank details by phone, on a number you look up yourself.',
+                                        'Keinen dieser Belege zahlen, bis jedes Unternehmen seine Bankverbindung telefonisch bestätigt hat — unter einer selbst recherchierten Nummer.');
+      return { text: t, src: src.concat(rings.flatMap(r => r.docs)) };
     }
     // money
-    if (has(/total|sum|summe|amount|betrag|exposure|risk|risiko|money|geld|how much|wie viel/)) {
+    if (has(/total|sum|summe|amount|betrag|exposure|risk|risiko|money|geld|how much|wie viel|gefaehrdet/)) {
       const g = a => a.reduce((s, i) => s + (i.gross || 0), 0), by = s => D.filter(i => i.status === s);
-      return { text: `Across ${D.length} documents:\n- Gross total: **${eu(g(D))}**\n- Approved (can be released): **${eu(g(by('approve')))}** (${by('approve').length})\n- On hold: **${eu(g(by('hold')))}** (${by('hold').length})\n- Critical (do not pay): **${eu(g(by('critical')))}** (${by('critical').length})\n- At risk from shared or invalid IBANs: **${eu(g(D.filter(i => i.ibanShared || i.ibanInvalid)))}**`, src };
+      return { text: T(
+        `Across ${D.length} documents:\n- Gross total: **${eu(g(D))}**\n- Approved (can be released): **${eu(g(by('approve')))}** (${by('approve').length})\n- On hold: **${eu(g(by('hold')))}** (${by('hold').length})\n- Critical (do not pay): **${eu(g(by('critical')))}** (${by('critical').length})\n- At risk from shared or invalid IBANs: **${eu(g(D.filter(i => i.ibanShared || i.ibanInvalid)))}**`,
+        `Über ${D.length} Belege:\n- Bruttosumme: **${eu(g(D))}**\n- Genehmigt (zahlbar): **${eu(g(by('approve')))}** (${by('approve').length})\n- Zur Prüfung gehalten: **${eu(g(by('hold')))}** (${by('hold').length})\n- Kritisch (nicht zahlen): **${eu(g(by('critical')))}** (${by('critical').length})\n- Risiko durch geteilte oder ungültige IBANs: **${eu(g(D.filter(i => i.ibanShared || i.ibanInvalid)))}**`), src };
     }
     // duplicates
-    if (has(/duplicat|doppel|twice|zweimal/)) {
+    if (has(/duplicat|doppel|dublette|twice|zweimal/)) {
       const d = D.filter(i => i.checks.some(c => c.id === 'duplicate' && c.s !== 'ok'));
-      return { text: d.length ? d.map(i => `${docLine(i)} — ${i.checks.find(c => c.id === 'duplicate').d}`).join('\n') : 'No duplicate invoices in this batch.', src };
+      return { text: d.length ? d.map(i => `${docLine(i)} — ${finding(i.checks.find(c => c.id === 'duplicate'), i).d}`).join('\n') : T('No duplicate invoices in this batch.', 'In diesem Stapel gibt es keine doppelten Rechnungen.'), src };
     }
     // purchase orders
     if (ent.pos.length || has(/purchase order|bestellung|\bpo\b|order/)) {
-      if (has(/without|no po|ohne|missing|keine/)) {
+      if (has(/without|no po|ohne|missing|keine|fehl/)) {
         const n = D.filter(i => !i.po);
-        return { text: n.length ? `${n.length} document(s) have no order number:\n` + n.map(i => '- ' + docLine(i)).join('\n') : 'Every document references an order.', src };
+        return { text: n.length ? T(`${n.length} document(s) have no order number:\n`, `${n.length} Beleg(e) ohne Bestellnummer:\n`) + n.map(i => '- ' + docLine(i)).join('\n') : T('Every document references an order.', 'Jeder Beleg verweist auf eine Bestellung.'), src };
       }
       const POs = APEngine.getPOs(), list = ent.pos.length ? ent.pos : Object.keys(POs);
-      return { text: list.map(p => { const o = POs[p]; if (!o) return `${p} is not in the purchase-order list.`;
+      return { text: list.map(p => { const o = POs[p]; if (!o) return T(`${p} is not in the purchase-order list.`, `${p} steht nicht in der Bestellliste.`);
         const refs = D.filter(i => i.po === p); refs.forEach(i => src.push(i));
-        return `**${p}** — ${o.vendor}: ${o.lines.map(l => `${l.article}, ${l.qty.toLocaleString('de-DE')} × ${APEngine.eur(l.unit)} €`).join('; ')}` + (refs.length ? `\n  Used by: ${refs.map(i => `${i.invNum} (${label(i.status)})`).join(', ')}` : '\n  No uploaded document references it.'); }).join('\n'), src };
+        return `**${p}** — ${o.vendor}: ${o.lines.map(l => `${l.article}, ${qty(l.qty)} × ${eu(l.unit)}`).join('; ')}` +
+          (refs.length ? T('\n  Used by: ', '\n  Verwendet von: ') + refs.map(i => `${i.invNum} (${label(i.status)})`).join(', ') : T('\n  No uploaded document references it.', '\n  Kein hochgeladener Beleg verweist darauf.')); }).join('\n'), src };
     }
     // lists / counts by status
-    if (statusOf || has(/how many|wie viele|count|anzahl|which|welche|list|status|overview|uebersicht|summary/)) {
+    if (statusOf || has(/how many|wie viele|count|anzahl|which|welche|list|status|overview|uebersicht|summary|zusammenfassung/)) {
       if (statusOf) {
         const s = D.filter(i => i.status === statusOf);
-        return { text: s.length ? `**${s.length} ${label(statusOf).toLowerCase()}** document(s):\n` + s.map(i => `- ${docLine(i)} — ${[...i.checks.filter(c => c.s === 'err'), ...i.checks.filter(c => c.s === 'warn')].slice(0, 3).map(c => c.t).join(', ') || 'all checks passed'}`).join('\n') : `No document is ${label(statusOf).toLowerCase()}.`, src };
+        return { text: s.length ? T(`**${s.length} ${label(statusOf).toLowerCase()}** document(s):\n`, `**${s.length}** Beleg(e) mit Status **${label(statusOf)}**:\n`) + s.map(i => `- ${docLine(i)} — ${short(i)}`).join('\n')
+                                : T(`No document is ${label(statusOf).toLowerCase()}.`, `Kein Beleg hat den Status ${label(statusOf)}.`), src };
       }
       const n = s => D.filter(i => i.status === s).length;
-      return { text: `**${D.length} documents** checked: ${n('approve')} approve, ${n('hold')} hold, ${n('critical')} critical.\n` + D.map(i => '- ' + docLine(i)).join('\n'), src };
+      return { text: T(`**${D.length} documents** checked: ${n('approve')} approve, ${n('hold')} hold, ${n('critical')} critical.\n`, `**${D.length} Belege** geprüft: ${n('approve')} genehmigt, ${n('hold')} halten, ${n('critical')} kritisch.\n`) + D.map(i => '- ' + docLine(i)).join('\n'), src };
     }
     // vendors
     if (has(/vendor|supplier|lieferant|compan|firm|unternehmen/)) {
-      return { text: D.map(i => '- ' + docLine(i)).join('\n') || 'No documents yet.', src };
+      return { text: D.map(i => '- ' + docLine(i)).join('\n') || T('No documents yet.', 'Noch keine Belege.'), src };
     }
     // fall back: the best retrieved facts
     const best = R.hits.length ? R.hits[0].score : 0;
     const top = R.hits.filter(h => h.score >= best * 0.6).slice(0, 3);
-    if (!top.length) return { text: 'I could not find anything about that in the app documentation or the uploaded documents. Try naming a vendor, an invoice number or a topic like IBAN, VAT, purchase order or verdict.', src };
+    if (!top.length) return { text: T('I could not find anything about that in the app documentation or the uploaded documents. Try naming a vendor, an invoice number or a topic like IBAN, VAT, purchase order or verdict.',
+                                      'Dazu habe ich weder in der App-Dokumentation noch in den hochgeladenen Belegen etwas gefunden. Nennen Sie einen Lieferanten, eine Rechnungsnummer oder ein Thema wie IBAN, Umsatzsteuer, Bestellung oder Urteil.'), src };
     top.filter(h => h.inv).forEach(h => src.push(h.inv));
     return { text: top.map(h => `**${h.title}** — ${h.text}`).join('\n\n'), src, topics: top.filter(h => h.kind === 'doc').map(h => h.title) };
   }
 
   /* ── 3b. answer with Claude (inside the Claude viewer) ── */
-  let samplePromise = null, history = [];
+  let samplePromise = null;
+  const turns = [];      // { q, mode, text, local, R }
   function getSample() {
     if (!samplePromise) samplePromise = (window.claude && window.claude.use ? window.claude.use('sample') : Promise.resolve(null)).catch(() => null);
     return samplePromise;
@@ -3020,10 +3117,11 @@ const QBot = (() => {
   async function askClaude(sample, q, R, onText) {
     const ctx = R.hits.concat(R.idx.chunks.filter(c => c.kind === 'batch' && !R.hits.includes(c)))
       .map((c, n) => `[${n + 1}] ${c.title}\n${c.text}`).join('\n\n');
-    const prompt = `You are the assistant inside "Quellberg Invoice Review", an accounts-payable app. Answer the user's question using ONLY the numbered facts below. ` +
+    const lang = DE() ? 'German' : 'English';
+    const prompt = `You are the AI assistant inside "Quellberg Invoice Review", an accounts-payable app. Answer the user's question using ONLY the numbered facts below. ` +
       `If the facts do not contain the answer, say so. Be concise and concrete (amounts, invoice numbers, vendor names). Use short paragraphs or "- " bullets and **bold** for key items. ` +
-      `Cite facts as [n]. Answer in the language of the question.\n\nFACTS\n${ctx}\n\n` +
-      (history.length ? 'EARLIER IN THIS CHAT\n' + history.slice(-6).map(h => `${h.role}: ${h.text}`).join('\n') + '\n\n' : '') + `QUESTION\n${q}`;
+      `Cite facts as [n]. Always answer in ${lang}, whatever language the question is in.\n\nFACTS\n${ctx}\n\n` +
+      (turns.length ? 'EARLIER IN THIS CHAT\n' + turns.slice(-3).map(h => `user: ${h.q}\nassistant: ${h.text}`).join('\n') + '\n\n' : '') + `QUESTION\n${q}`;
     const r = await sample(prompt, { onText: ({ text }) => onText(text), cache: false, modelTier: 'default' });
     return r.text;
   }
@@ -3043,6 +3141,11 @@ const QBot = (() => {
     if (ul) out.push('</ul>');
     return out.join('');
   };
+  const GREETING = () => T('Hi! I\'m the AI assistant. Ask me about this app or the documents in the queue — verdicts, findings, shared IBANs, purchase orders, amounts. I answer only from what is in the app and show my sources.',
+                           'Hallo! Ich bin der KI-Assistent. Fragen Sie mich zu dieser App oder zu den Belegen in der Warteschlange — Urteile, Befunde, geteilte IBANs, Bestellungen, Beträge. Ich antworte nur aus den Daten der App und nenne meine Quellen.');
+  const CHIPS = () => DE()
+    ? ['Welche Rechnungen sind kritisch?', 'Wer teilt sich eine IBAN?', 'Wie viel Geld ist gefährdet?', 'Wie entsteht das Urteil?', 'Welche Belege haben keine Bestellung?']
+    : ['Which invoices are critical?', 'Who shares an IBAN?', 'How much money is at risk?', 'How is the verdict decided?', 'Which documents have no PO?'];
 
   function addMsg(role, html) {
     const el = document.createElement('div'); el.className = 'qb-msg qb-' + role; el.innerHTML = html;
@@ -3053,7 +3156,12 @@ const QBot = (() => {
     const docs = [...new Map(used.map(i => [i.id, i])).values()].slice(0, 8);
     const topics = mode === 'claude' ? R.hits.filter(h => h.kind === 'doc').slice(0, 3).map(h => h.title) : (local.topics || []);
     if (!docs.length && !topics.length) return '';
-    return `<div class="qb-src"><span>Sources:</span>${docs.map(i => `<button data-goto="${i.id}" title="${esc(i.file)}">${esc(i.invNum)}</button>`).join('')}${topics.map(t => `<em>${esc(t)}</em>`).join('')}</div>`;
+    return `<div class="qb-src"><span>${T('Sources:', 'Quellen:')}</span>${docs.map(i => `<button data-goto="${i.id}" title="${esc(i.file)}">${esc(i.invNum)}</button>`).join('')}${topics.map(t => `<em>${esc(t)}</em>`).join('')}</div>`;
+  }
+  function renderBot(el, turn) {
+    el.innerHTML = md(turn.text) + sourcesHtml(turn.R, turn.local, turn.mode) +
+      `<div class="qb-mode">${turn.mode === 'claude' ? T('Written by Claude from the retrieved facts', 'Von Claude aus den gefundenen Fakten geschrieben') : T('Answered from retrieved facts · no model', 'Aus gefundenen Fakten beantwortet · ohne Modell')}</div>`;
+    el.querySelectorAll('[data-goto]').forEach(b => b.addEventListener('click', () => selectInvoice(+b.dataset.goto)));
   }
   let busy = false;
   async function ask(q) {
@@ -3069,12 +3177,35 @@ const QBot = (() => {
       catch (e) { text = null; if (e && e.code === 'not_granted') samplePromise = Promise.resolve(null); }
     }
     const local = compose(q, R);
-    if (text == null) text = local.text;
-    bot.innerHTML = md(text) + sourcesHtml(R, local, mode) + `<div class="qb-mode">${mode === 'claude' ? 'Written by Claude from the retrieved facts' : 'Answered from retrieved facts · no model'}</div>`;
-    bot.querySelectorAll('[data-goto]').forEach(b => b.addEventListener('click', () => selectInvoice(+b.dataset.goto)));
-    history.push({ role: 'user', text: q }, { role: 'assistant', text });
+    const turn = { q, mode, text: text == null ? local.text : text, local, R, lang: currentLang };
+    turns.push(turn);
+    renderBot(bot, turn);
     $('qbMsgs').scrollTop = $('qbMsgs').scrollHeight;
     busy = false; $('qbSend').disabled = false; $('qbInput').focus();
+  }
+
+  /* EN/DE switch: translate the panel and re-answer earlier questions in the new language */
+  function setLang() {
+    $('qbTitle').textContent = T('AI Assistant', 'KI-Assistent');
+    $('qbSub').textContent = T('Answers from the app and your uploaded documents', 'Antwortet aus der App und Ihren hochgeladenen Belegen');
+    $('qbInput').placeholder = T('Ask about an invoice, vendor, IBAN, PO…', 'Fragen Sie zu Rechnung, Lieferant, IBAN, Bestellung…');
+    $('qbSend').textContent = T('Ask', 'Fragen');
+    $('qbClose').setAttribute('aria-label', T('Close', 'Schließen'));
+    $('qbFab').title = T('Open the AI assistant', 'KI-Assistent öffnen');
+    $('qbFab').setAttribute('aria-label', $('qbFab').title);
+    $('qbPanel').setAttribute('aria-label', T('AI assistant', 'KI-Assistent'));
+    $('qbChips').innerHTML = CHIPS().map(c => `<button class="qb-chip" type="button">${esc(c)}</button>`).join('');
+    $('qbChips').querySelectorAll('.qb-chip').forEach(c => c.addEventListener('click', () => ask(c.textContent)));
+    // rebuild the conversation in the selected language
+    $('qbMsgs').innerHTML = '';
+    addMsg('bot', md(GREETING()));
+    for (const turn of turns) {
+      addMsg('user', esc(turn.q));
+      if (turn.mode === 'local' && turn.lang !== currentLang) {
+        turn.R = retrieve(turn.q); turn.local = compose(turn.q, turn.R); turn.text = turn.local.text; turn.lang = currentLang;
+      }
+      renderBot(addMsg('bot', ''), turn);
+    }
   }
 
   function init() {
@@ -3084,11 +3215,10 @@ const QBot = (() => {
     $('qbClose').addEventListener('click', () => open(false));
     $('qbForm').addEventListener('submit', e => { e.preventDefault(); ask($('qbInput').value); });
     $('qbInput').addEventListener('keydown', e => e.stopPropagation());   // keep app shortcuts out of the chat box
-    document.querySelectorAll('.qb-chip').forEach(c => c.addEventListener('click', () => ask(c.textContent)));
-    addMsg('bot', md('Hi! Ask me about this app or the documents in the queue — verdicts, findings, shared IBANs, purchase orders, amounts. I answer only from what is in the app and show my sources.'));
+    setLang();
     getSample();
   }
-  return { init, retrieve, compose, ask };
+  return { init, setLang, retrieve, compose, ask };
 })();
 QBot.init();
 
@@ -3412,6 +3542,7 @@ document.getElementById('langToggle').addEventListener('click', e => {
   document.querySelectorAll('#langToggle .lang-opt').forEach(b =>
     b.classList.toggle('active', b.dataset.lang === currentLang));
   applyI18n();
+  QBot.setLang();
   const inv = invoices.find(i => i.id === currentId);
   if (inv) {
     buildDocPaper(inv);
