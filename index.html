@@ -1634,50 +1634,67 @@ function buildDocPaper(inv) {
     iban:   'IBAN Bankverbindung',
   };
 
-  /* ── MODE 0: ACTUAL UPLOADED FILE (data URL or blob URL) ── */
+  /* ── MODE 0: ACTUAL UPLOADED FILE ──────────────────────── */
   if (inv._fileType) {
-    el.className = 'doc-paper pdf-mode';
 
     if (inv._dataUrl) {
-      // Canvas-rendered via PDF.js OR FileReader base64 — show as img (best quality)
+      // ✅ PDF.js canvas render succeeded (or FileReader image) — show it
+      el.className = 'doc-paper pdf-mode';
       el.innerHTML = `<div class="pdf-viewer-wrap" style="display:flex;align-items:flex-start;justify-content:center;overflow:auto;height:100%">
         <img src="${inv._dataUrl}" alt="${inv.file}" draggable="false" style="max-width:100%;height:auto;display:block;">
       </div>`;
+      return;
+    }
 
-    } else if (inv._blobUrl) {
-      // Native browser PDF viewer via blob URL — immediate, no JS library needed
-      // PDF.js is still rendering asynchronously and will upgrade this when ready
-      el.innerHTML = `<div style="width:100%;height:100%;min-height:600px;display:flex;flex-direction:column">
-        <object data="${inv._blobUrl}#toolbar=0&view=FitH" type="application/pdf"
-                style="width:100%;flex:1;min-height:580px;border:none;display:block">
-          <embed src="${inv._blobUrl}" type="application/pdf"
-                 style="width:100%;flex:1;min-height:580px;border:none;display:block">
-          <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;padding:32px;box-sizing:border-box;color:var(--fg-3);text-align:center">
-            <div style="font-size:13px">PDF preview not available in this browser</div>
-            <div style="font-size:11px">Extracted fields &amp; analysis are shown in the right panel →</div>
-          </div>
-        </object>
-      </div>`;
-
-    } else if (inv._fileType === 'image') {
-      // FileReader still loading — show spinner
+    if (inv._fileType === 'image') {
+      // Image still loading via FileReader
+      el.className = 'doc-paper pdf-mode';
       el.innerHTML = `<div class="pdf-viewer-wrap" style="display:flex;align-items:center;justify-content:center;height:100%">
         <div style="text-align:center;color:var(--fg-3)">
           <div style="font-size:28px;margin-bottom:8px;animation:pipe-spin .8s linear infinite;display:inline-block">⟳</div>
           <div style="font-size:13px">Loading image…</div>
         </div>
       </div>`;
-
-    } else {
-      // PDF — initialising, blob URL coming in milliseconds
-      el.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--fg-3)">
-        <div style="display:flex;align-items:center;gap:8px;font-size:13px">
-          <span style="display:inline-block;width:14px;height:14px;border:2px solid var(--fg-3);border-top-color:transparent;border-radius:50%;animation:pipe-spin .8s linear infinite;flex-shrink:0"></span>
-          Loading…
-        </div>
-      </div>`;
+      return;
     }
-    return;
+
+    // PDF not yet canvas-rendered:
+    // • Fuzzy-matched invoice (_uploadedFile): fall through to MODE A (pre-baked image)
+    //   PDF.js is rendering async; when done it calls buildDocPaper again and this returns early above.
+    //   User sees the invoice image immediately — clean, no blank screen.
+    // • New upload (no match): show native viewer + "Open PDF" button.
+    if (!inv._uploadedFile) {
+      el.className = 'doc-paper pdf-mode';
+      if (inv._blobUrl) {
+        el.innerHTML = `
+          <div style="display:flex;flex-direction:column;height:100%;min-height:600px;background:var(--surface-2)">
+            <div style="flex:1;position:relative;overflow:hidden">
+              <object data="${inv._blobUrl}#toolbar=0" type="application/pdf"
+                      style="position:absolute;inset:0;width:100%;height:100%;border:none">
+                <iframe src="${inv._blobUrl}"
+                        style="position:absolute;inset:0;width:100%;height:100%;border:none"
+                        title="PDF viewer"></iframe>
+              </object>
+            </div>
+            <div style="padding:8px 14px;border-top:1px solid var(--border);background:var(--surface-2);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-shrink:0">
+              <span style="font-size:11px;color:var(--fg-3);font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${inv.file}</span>
+              <a href="${inv._blobUrl}" target="_blank" rel="noopener"
+                 style="font-size:12px;font-weight:600;color:var(--accent);text-decoration:none;padding:4px 12px;border:1.5px solid var(--accent);border-radius:4px;white-space:nowrap;flex-shrink:0">
+                Open PDF ↗
+              </a>
+            </div>
+          </div>`;
+      } else {
+        el.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--fg-3)">
+          <div style="display:flex;align-items:center;gap:8px;font-size:13px">
+            <span style="display:inline-block;width:14px;height:14px;border:2px solid var(--fg-3);border-top-color:transparent;border-radius:50%;animation:pipe-spin .8s linear infinite;flex-shrink:0"></span>
+            Loading…
+          </div>
+        </div>`;
+      }
+      return;
+    }
+    // Fuzzy-matched + PDF not ready → fall through to MODE A (pre-baked image shown below)
   }
 
   /* ── MODE A: REAL PDF IMAGE + OVERLAYS ─────────────────── */
