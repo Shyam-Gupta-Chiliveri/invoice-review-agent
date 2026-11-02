@@ -1958,187 +1958,161 @@ function buildExtraction(inv, activeTab) {
     }).join('');
     body.innerHTML = `<div class="checks-section">${checkHtml}</div>`;
   } else if (activeTab === 'iban') {
-    const ringData  = ringOf(inv);
-    const isShared  = ringData.length > 0;
-    const ringVendorCount = 1 + new Set(ringData.map(r => r.vendor)).size;
-    // Shorten vendor name to fit SVG label
-    const sv = v => { if (ringData.length > 4) return ''; const w=v.split(' '); return w[0].length<=12?w[0]:w[0].substring(0,11)+'…'; };
+    const DE = currentLang === 'DE';
+    const ringData  = ibanDocs(inv);                       // every other document in the batch with this IBAN
+    const isShared  = inv.ibanShared;                     // used by at least one OTHER company
+    const ringVendorCount = 1 + new Set(ringData.filter(d => !d.sameVendor).map(d => d.vendor)).size;
+    const docCount  = 1 + ringData.length;
+    const many      = ringData.length > 4;
+    const sv = v => { if (many) return ''; const w = v.split(' '); return w[0].length <= 12 ? w[0] : w[0].substring(0, 11) + '…'; };
 
-    // ── SVG hub-and-spoke diagram ──────────────────────────
-    const cx=140, cy=110, sr=80, nr = ringData.length > 4 ? 11 : 18;
+    // ── SVG hub-and-spoke: one node per document ──
+    const cx = 140, cy = 110, sr = 80, nr = many ? 11 : 18;
     let svgStr;
-    if (isShared) {
-      const nodes = [
-        { vendor:inv.vendor, invNum:inv.invNum, short:sv(inv.vendor), isCurrent:true },
-        ...ringData.map(m=>({ ...m, invNum: ringData.length > 4 ? '' : m.invNum, short:sv(m.vendor), isCurrent:false }))
-      ];
-      // Triangle: top, lower-right, lower-left
-      const angles = nodes.map((_, i) => -90 + i * 360 / nodes.length);
-      const pts = angles.map(a=>({ x:cx+sr*Math.cos(a*Math.PI/180), y:cy+sr*Math.sin(a*Math.PI/180) }));
-
-      const spokes = pts.map(p=>`
-        <line x1="${cx}" y1="${cy}" x2="${p.x.toFixed(1)}" y2="${p.y.toFixed(1)}"
-          stroke="#ef4444" stroke-width="1.5" stroke-dasharray="5 3" opacity="0.5">
-          <animate attributeName="stroke-dashoffset" from="0" to="-16" dur="1.3s" repeatCount="indefinite"/>
-        </line>`).join('');
-
+    if (ringData.length) {
+      const nodes = [{ vendor: inv.vendor, invNum: inv.invNum, short: sv(inv.vendor), isCurrent: true },
+                     ...ringData.map(m => ({ ...m, invNum: many ? '' : m.invNum, short: sv(m.vendor), isCurrent: false }))];
+      const col = isShared ? '#ef4444' : '#f59e0b', colL = isShared ? '#f87171' : '#fbbf24', rgb = isShared ? '239,68,68' : '245,158,11';
+      const pts = nodes.map((_, i) => { const a = (-90 + i * 360 / nodes.length) * Math.PI / 180; return { x: cx + sr * Math.cos(a), y: cy + sr * Math.sin(a) }; });
+      const spokes = pts.map(p => `
+        <line x1="${cx}" y1="${cy}" x2="${p.x.toFixed(1)}" y2="${p.y.toFixed(1)}" stroke="${col}" stroke-width="1.5" stroke-dasharray="5 3" opacity="0.5">
+          <animate attributeName="stroke-dashoffset" from="0" to="-16" dur="1.3s" repeatCount="indefinite"/></line>`).join('');
       const hub = `
-        <circle cx="${cx}" cy="${cy}" r="34" fill="#130018" stroke="#ef4444" stroke-width="2"/>
-        <circle cx="${cx}" cy="${cy}" r="34" fill="none" stroke="#ef4444" stroke-width="1.5" opacity="0">
+        <circle cx="${cx}" cy="${cy}" r="34" fill="#130018" stroke="${col}" stroke-width="2"/>
+        <circle cx="${cx}" cy="${cy}" r="34" fill="none" stroke="${col}" stroke-width="1.5" opacity="0">
           <animate attributeName="r" from="34" to="48" dur="2s" repeatCount="indefinite"/>
-          <animate attributeName="opacity" from="0.45" to="0" dur="2s" repeatCount="indefinite"/>
-        </circle>
+          <animate attributeName="opacity" from="0.45" to="0" dur="2s" repeatCount="indefinite"/></circle>
         <text x="${cx}" y="${cy-8}" text-anchor="middle" font-size="7.5" fill="rgba(255,255,255,.38)" letter-spacing="2">IBAN</text>
-        <text x="${cx}" y="${cy+5}" text-anchor="middle" font-size="14" fill="#f87171">⚠</text>
-        <text x="${cx}" y="${cy+17}" text-anchor="middle" font-size="6.5" fill="#f87171" font-weight="700" letter-spacing="1.5">SHARED</text>`;
-
-      const nodesSvg = nodes.map((n,i)=>{
-        const {x,y}=pts[i];
-        const fill  = n.isCurrent?'rgba(239,68,68,.38)':'rgba(239,68,68,.16)';
-        const strk  = n.isCurrent?'#f87171':'rgba(239,68,68,.55)';
-        const isTop = y < cy;
-        const lbY1  = isTop ? y-nr-14 : y+nr+12;
-        const lbY2  = isTop ? y-nr-4  : y+nr+22;
-        const pulse = n.isCurrent ? `
-          <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${nr}" fill="none" stroke="#f87171" stroke-width="1" opacity="0">
+        <text x="${cx}" y="${cy+5}" text-anchor="middle" font-size="14" fill="${colL}">${isShared ? '⚠' : '⇆'}</text>
+        <text x="${cx}" y="${cy+17}" text-anchor="middle" font-size="6.5" fill="${colL}" font-weight="700" letter-spacing="1.5">${isShared ? 'SHARED' : 'REUSED'}</text>`;
+      const nodesSvg = nodes.map((n, i) => {
+        const { x, y } = pts[i], isTop = y < cy;
+        const lbY1 = isTop ? y - nr - 14 : y + nr + 12, lbY2 = isTop ? y - nr - 4 : y + nr + 22;
+        const pulse = n.isCurrent ? `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${nr}" fill="none" stroke="${colL}" stroke-width="1" opacity="0">
             <animate attributeName="r" from="${nr}" to="${nr+10}" dur="1.8s" repeatCount="indefinite"/>
-            <animate attributeName="opacity" from="0.5" to="0" dur="1.8s" repeatCount="indefinite"/>
-          </circle>` : '';
+            <animate attributeName="opacity" from="0.5" to="0" dur="1.8s" repeatCount="indefinite"/></circle>` : '';
         return `${pulse}
-          <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${nr}" fill="${fill}" stroke="${strk}" stroke-width="${n.isCurrent?2:1.5}"/>
+          <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${nr}" fill="rgba(${rgb},${n.isCurrent ? .38 : .16})" stroke="${n.isCurrent ? colL : `rgba(${rgb},.55)`}" stroke-width="${n.isCurrent ? 2 : 1.5}"/>
           <text x="${x.toFixed(1)}" y="${(y+4).toFixed(1)}" text-anchor="middle" font-size="9" fill="rgba(255,255,255,.85)" font-weight="700">${i+1}</text>
           <text x="${x.toFixed(1)}" y="${lbY1.toFixed(1)}" text-anchor="middle" font-size="7.5" fill="rgba(255,255,255,.65)">${n.short}</text>
           <text x="${x.toFixed(1)}" y="${lbY2.toFixed(1)}" text-anchor="middle" font-size="7" fill="rgba(255,255,255,.35)">${n.invNum}</text>`;
       }).join('');
-
-      svgStr = `<svg viewBox="-10 -22 300 250" style="width:100%;height:auto">
-        ${spokes}${hub}${nodesSvg}
-      </svg>`;
+      svgStr = `<svg viewBox="-10 -22 300 250" style="width:100%;height:auto">${spokes}${hub}${nodesSvg}</svg>`;
     } else {
-      // Unique: single glowing green node
       svgStr = `<svg viewBox="0 0 280 120" style="width:100%;height:auto">
         <circle cx="${cx}" cy="60" r="38" fill="none" stroke="#22c55e" stroke-width="1" opacity="0.2">
           <animate attributeName="r" from="38" to="52" dur="2.5s" repeatCount="indefinite"/>
-          <animate attributeName="opacity" from="0.25" to="0" dur="2.5s" repeatCount="indefinite"/>
-        </circle>
+          <animate attributeName="opacity" from="0.25" to="0" dur="2.5s" repeatCount="indefinite"/></circle>
         <circle cx="${cx}" cy="60" r="30" fill="rgba(34,197,94,.15)" stroke="#22c55e" stroke-width="1.5"/>
         <text x="${cx}" y="56" text-anchor="middle" font-size="18" fill="#4ade80">✓</text>
-        <text x="${cx}" y="71" text-anchor="middle" font-size="7" fill="rgba(255,255,255,.4)" letter-spacing="1.5">UNIQUE</text>
-      </svg>`;
+        <text x="${cx}" y="71" text-anchor="middle" font-size="7" fill="rgba(255,255,255,.4)" letter-spacing="1.5">UNIQUE</text></svg>`;
     }
 
-    // ── Numbered legend below the diagram ────────────────
-    const legendDot = (i,cur) => `<span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:${cur?'rgba(239,68,68,.38)':'rgba(239,68,68,.16)'};border:${cur?'2':'1.5'}px solid ${cur?'#f87171':'rgba(239,68,68,.5)'};font-size:9px;font-weight:700;color:rgba(255,255,255,.85);flex-shrink:0">${i}</span>`;
-    const legendItems = isShared ? `
-      <div style="display:flex;flex-direction:column;gap:5px">
-        <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.28)">
-          ${legendDot(1,true)}
-          <div>
-            <div style="font-size:10.5px;font-weight:600;color:rgba(255,255,255,.9)">${inv.vendor} <span style="font-size:9px;font-weight:400;color:rgba(255,255,255,.38)">(${currentLang==='DE'?'diese Rechnung':'this invoice'})</span></div>
-            <div style="font-size:9px;color:rgba(255,255,255,.38);margin-top:1px">${inv.invNum}</div>
-          </div>
-        </div>
-        ${ringData.map((m,i)=>`
-        <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.15)">
-          ${legendDot(i+2,false)}
-          <div>
-            <div style="font-size:10.5px;font-weight:600;color:rgba(255,255,255,.75)">${m.vendor}</div>
-            <div style="font-size:9px;color:rgba(255,255,255,.38);margin-top:1px">${m.invNum}</div>
-          </div>
-        </div>`).join('')}
-      </div>` : '';
-
-    const ibanBad      = isShared || inv.ibanInvalid || !inv.iban;
-    if (!isShared && ibanBad) {
+    const ibanBad = isShared || inv.ibanInvalid || !inv.iban;
+    if (!isShared && (inv.ibanInvalid || !inv.iban)) {
       svgStr = `<svg viewBox="0 0 280 120" style="width:100%;height:auto">
         <circle cx="${cx}" cy="60" r="30" fill="rgba(239,68,68,.15)" stroke="#ef4444" stroke-width="1.5"/>
         <text x="${cx}" y="57" text-anchor="middle" font-size="18" fill="#f87171">${inv.iban ? '✗' : '?'}</text>
         <text x="${cx}" y="72" text-anchor="middle" font-size="7" fill="rgba(255,255,255,.45)" letter-spacing="1.5">${inv.iban ? 'INVALID' : 'MISSING'}</text></svg>`;
     }
-    const statusColor  = ibanBad ? '#f87171' : '#4ade80';
-    const statusBg     = ibanBad ? 'rgba(239,68,68,.12)' : 'rgba(74,222,128,.1)';
-    const statusBorder = ibanBad ? 'rgba(239,68,68,.28)'  : 'rgba(74,222,128,.25)';
-    const statusLabel  = isShared
-      ? (currentLang==='DE' ? 'GETEILT — BEC-Risiko' : 'SHARED — BEC Risk')
-      : inv.ibanInvalid ? (currentLang==='DE' ? 'UNGÜLTIG — Prüfsumme falsch' : 'INVALID — checksum fails')
-      : !inv.iban ? (currentLang==='DE' ? 'KEINE IBAN auf dem Beleg' : 'NO IBAN on document')
-      : (currentLang==='DE' ? 'EINDEUTIG — Sauber'   : 'UNIQUE — Clean');
+    const statusColor  = ibanBad ? '#f87171' : ringData.length ? '#fbbf24' : '#4ade80';
+    const statusRgb    = ibanBad ? '239,68,68' : ringData.length ? '245,158,11' : '74,222,128';
+    const statusLabel  = isShared ? (DE ? 'GETEILT — BEC-Risiko' : 'SHARED — BEC risk')
+      : inv.ibanInvalid ? (DE ? 'UNGÜLTIG — Prüfsumme falsch' : 'INVALID — checksum fails')
+      : !inv.iban ? (DE ? 'KEINE IBAN auf dem Beleg' : 'NO IBAN on document')
+      : ringData.length ? (DE ? 'NUR DIESER LIEFERANT' : 'SAME VENDOR ONLY')
+      : (DE ? 'EINDEUTIG — Sauber' : 'UNIQUE — Clean');
     const ibanDesc = isShared
-      ? (currentLang==='DE' ? `Gleiche IBAN bei ${ringVendorCount} Lieferanten (${1+ringData.length} Belege)` : `Same IBAN used by ${ringVendorCount} different suppliers (${1+ringData.length} documents)`)
-      : inv.ibanInvalid ? (currentLang==='DE' ? 'ISO-13616-Prüfsumme (mod 97) schlägt fehl — kein gültiges Konto' : 'ISO 13616 mod-97 checksum fails — not a valid account')
-      : !inv.iban ? (currentLang==='DE' ? 'Bankverbindung fehlt auf dem Dokument' : 'No bank details on the document')
-      : (currentLang==='DE' ? 'IBAN gültig und einmalig in diesem Stapel' : 'IBAN valid and unique in this batch');
+      ? (DE ? `Dieses Konto steht auf ${docCount} Belegen von ${ringVendorCount} verschiedenen Unternehmen.` : `This account appears on ${docCount} documents from ${ringVendorCount} different companies.`)
+      : inv.ibanInvalid ? (DE ? 'ISO-13616-Prüfsumme (mod 97) schlägt fehl — kein gültiges Konto.' : 'ISO 13616 mod-97 checksum fails — not a valid account.')
+      : !inv.iban ? (DE ? 'Bankverbindung fehlt auf dem Dokument.' : 'No bank details on the document.')
+      : ringData.length ? (DE ? `Gleiches Konto auf ${docCount} Belegen desselben Lieferanten — unauffällig.` : `Same account on ${docCount} documents of the same vendor — expected.`)
+      : (DE ? 'IBAN gültig und von keinem anderen Beleg im Stapel verwendet.' : 'IBAN valid and not used on any other document in the batch.');
+
+    // bank code for German IBANs (DEkk BBBBBBBB CCCCCCCCCC)
+    const raw = inv._f && inv._f.iban;
+    const bankLine = raw && raw.startsWith('DE') && raw.length === 22
+      ? `<div style="font-size:9.5px;color:rgba(255,255,255,.4);margin-top:4px;font-family:monospace">${DE ? 'Bankleitzahl' : 'Bank code (BLZ)'} ${raw.slice(4, 12)} · ${DE ? 'Konto' : 'Account'} ${raw.slice(12)}</div>` : '';
+
+    // ── connected documents: company · invoice no. · file · date · amount · status ──
+    const chip = s => { const c = s === 'approve' ? '74,222,128' : s === 'critical' ? '239,68,68' : s === 'processing' ? '167,139,250' : '251,191,36';
+      return `<span style="font-size:8.5px;font-weight:700;padding:1px 6px;border-radius:8px;background:rgba(${c},.15);color:rgb(${c});border:1px solid rgba(${c},.35);white-space:nowrap">${slabel(s)}</span>`; };
+    const dot = (i, cur, rgb) => `<span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:rgba(${rgb},${cur ? .38 : .16});border:${cur ? 2 : 1.5}px solid rgba(${rgb},${cur ? 1 : .55});font-size:9px;font-weight:700;color:rgba(255,255,255,.85);flex-shrink:0">${i}</span>`;
+    const rowRgb = isShared ? '239,68,68' : '245,158,11';
+    const docRow = (d, i, cur) => `
+      <div class="iban-doc-row" ${cur ? '' : `data-goto="${d.id}" title="${DE ? 'Beleg öffnen' : 'Open document'}"`}
+           style="display:flex;gap:8px;align-items:flex-start;padding:7px 8px;border-radius:6px;background:rgba(${rowRgb},${cur ? .12 : .06});border:1px solid rgba(${rowRgb},${cur ? .3 : .15});${cur ? '' : 'cursor:pointer'}">
+        ${dot(i, cur, rowRgb)}
+        <div style="min-width:0;flex:1">
+          <div style="display:flex;justify-content:space-between;gap:6px;align-items:baseline">
+            <span style="font-size:10.5px;font-weight:600;color:rgba(255,255,255,.9);overflow:hidden;text-overflow:ellipsis">${d.vendor}${cur ? ` <span style="font-size:9px;font-weight:400;color:rgba(255,255,255,.4)">(${DE ? 'dieser Beleg' : 'this document'})</span>` : d.sameVendor ? ` <span style="font-size:9px;font-weight:400;color:rgba(255,255,255,.4)">(${DE ? 'gleicher Lieferant' : 'same vendor'})</span>` : ''}</span>
+            ${chip(d.status)}
+          </div>
+          <div style="font-size:9.5px;color:rgba(255,255,255,.55);margin-top:2px;font-family:monospace">${d.invNum}${d.date ? ' · ' + d.date : ''}${d.gross != null ? ' · € ' + fmt(d.gross) : ''}</div>
+          <div style="font-size:9px;color:rgba(255,255,255,.35);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📄 ${d.file}</div>
+        </div>
+      </div>`;
+    const self = { id: inv.id, vendor: inv.vendor, invNum: inv.invNum, file: inv.file, date: inv.date, gross: inv.gross, status: inv.status };
+    const legendItems = ringData.length ? `
+      <div>
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,.35);margin-bottom:6px">${DE ? 'Verbundene Belege' : 'Connected documents'} · ${docCount} ${DE ? 'Belege' : 'docs'} · ${ringVendorCount} ${DE ? (ringVendorCount === 1 ? 'Unternehmen' : 'Unternehmen') : (ringVendorCount === 1 ? 'company' : 'companies')}</div>
+        <div style="display:flex;flex-direction:column;gap:5px">${[self, ...ringData].map((d, i) => docRow(d, i + 1, i === 0)).join('')}</div>
+      </div>` : '';
+
+    // ── every shared account in the whole batch (updates with each upload) ──
+    const rings = ibanRingsInBatch();
+    const batchRings = rings.length ? `
+      <div>
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,.35);margin:2px 0 6px">${DE ? 'Geteilte Konten im ganzen Stapel' : 'Shared accounts in the whole batch'} · ${rings.length}</div>
+        ${rings.map(r => `
+          <div style="padding:8px 10px;border-radius:8px;background:rgba(239,68,68,${r.iban === raw ? .1 : .05});border:1px solid rgba(239,68,68,${r.iban === raw ? .3 : .15});margin-bottom:6px">
+            <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
+              <span style="font-size:10.5px;font-family:monospace;font-weight:600;color:rgba(255,255,255,.85)">${APEngine.fmtIban(r.iban)}</span>
+              <span style="font-size:9.5px;color:#fca5a5;font-weight:600">${r.vendorCount} ${DE ? 'Unternehmen' : 'companies'} · ${r.docs.length} ${DE ? 'Belege' : 'docs'} · € ${fmt(r.total)}</span>
+            </div>
+            <div style="margin-top:5px;display:flex;flex-direction:column;gap:2px">
+              ${r.byVendor.map(v => `<div style="font-size:9.5px;color:rgba(255,255,255,.6);line-height:1.5">
+                <span style="color:rgba(255,255,255,.85);font-weight:600">${v.vendor}</span> — ${v.docs.map(d => `<span ${d.id === inv.id ? '' : `data-goto="${d.id}"`} style="font-family:monospace;${d.id === inv.id ? 'color:#fca5a5' : 'cursor:pointer;text-decoration:underline dotted'}" title="${d.file}">${d.invNum}</span>`).join(', ')}</div>`).join('')}
+            </div>
+          </div>`).join('')}
+      </div>` : '';
 
     body.innerHTML = `
       <div style="padding:14px 16px;display:flex;flex-direction:column;gap:10px">
         <div>
-          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,.35);margin-bottom:5px">${currentLang==='DE'?'Geprüfte IBAN':'IBAN Checked'}</div>
-          <div style="font-size:11.5px;font-family:monospace;font-weight:600;color:rgba(255,255,255,.85);background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:7px 10px;letter-spacing:.5px">${inv.iban}</div>
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,.35);margin-bottom:5px">${DE ? 'Geprüfte IBAN' : 'IBAN checked'}</div>
+          <div style="font-size:11.5px;font-family:monospace;font-weight:600;color:rgba(255,255,255,.85);background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:7px 10px;letter-spacing:.5px">${inv.iban || '—'}${bankLine}</div>
         </div>
         <div style="background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:8px 4px 4px;position:relative">
-          ${isShared?`<div style="position:absolute;top:7px;left:11px;font-size:8px;font-weight:700;color:rgba(255,255,255,.18);text-transform:uppercase;letter-spacing:1px">Ring · ${ringVendorCount} ${currentLang==='DE'?'Lieferanten':'suppliers'} · ${1+ringData.length} ${currentLang==='DE'?'Belege':'docs'}</div>`:''}
+          ${ringData.length ? `<div style="position:absolute;top:7px;left:11px;font-size:8px;font-weight:700;color:rgba(255,255,255,.18);text-transform:uppercase;letter-spacing:1px">Ring · ${ringVendorCount} ${DE ? 'Unternehmen' : 'companies'} · ${docCount} ${DE ? 'Belege' : 'docs'}</div>` : ''}
           ${svgStr}
         </div>
-        ${legendItems}
-        <div style="padding:9px 12px;border-radius:8px;background:${statusBg};border:1px solid ${statusBorder};display:flex;align-items:center;gap:10px">
-          <span style="font-size:16px;color:${statusColor};flex-shrink:0">${ibanBad?'⚠':'✓'}</span>
+        <div style="padding:9px 12px;border-radius:8px;background:rgba(${statusRgb},.12);border:1px solid rgba(${statusRgb},.28);display:flex;align-items:center;gap:10px">
+          <span style="font-size:16px;color:${statusColor};flex-shrink:0">${ibanBad ? '⚠' : '✓'}</span>
           <div>
             <div style="font-size:11.5px;font-weight:700;color:${statusColor};letter-spacing:.5px">${statusLabel}</div>
-            <div style="font-size:10px;color:rgba(255,255,255,.45);margin-top:2px">${ibanDesc}</div>
+            <div style="font-size:10px;color:rgba(255,255,255,.5);margin-top:2px">${ibanDesc}</div>
           </div>
         </div>
-        ${isShared?`<div style="padding:8px 12px;border-radius:6px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2)">
-          <div style="font-size:10px;font-weight:600;color:#fca5a5">${currentLang==='DE'?'⚠ Empfehlung:':'⚠ Recommendation:'}</div>
-          <div style="font-size:10px;color:rgba(255,255,255,.5);margin-top:3px;line-height:1.6">${currentLang==='DE'
-            ?'Diese IBAN erscheint bei mehreren Lieferanten — möglicher BEC-Angriff. Zahlung zurückhalten bis IBAN direkt beim Lieferanten bestätigt.'
-            :'This IBAN appears across multiple suppliers — possible BEC attack. Hold payment pending direct IBAN confirmation with the supplier.'}</div>
-        </div>`:''}
-        <div style="font-size:9.5px;color:rgba(255,255,255,.25);font-style:italic;text-align:center">${currentLang==='DE'
-          ?`Abgeglichen mit ${invoices.length} Dokumenten im aktuellen Stapel`
-          :`Checked across ${invoices.length} documents in current batch`}</div>
+        ${legendItems}
+        ${isShared ? `<div style="padding:8px 12px;border-radius:6px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2)">
+          <div style="font-size:10px;font-weight:600;color:#fca5a5">${DE ? '⚠ Empfehlung:' : '⚠ Recommendation:'}</div>
+          <div style="font-size:10px;color:rgba(255,255,255,.5);margin-top:3px;line-height:1.6">${DE
+            ? `Keinen dieser ${docCount} Belege zahlen. Jedes Unternehmen unter einer selbst recherchierten Telefonnummer anrufen (nicht die auf dem Beleg) und die Bankverbindung bestätigen lassen.`
+            : `Pay none of these ${docCount} documents. Call each company on a number you look up yourself (not the one on the document) and have them confirm their bank details.`}</div>
+        </div>` : ''}
+        ${batchRings}
+        <div style="font-size:9.5px;color:rgba(255,255,255,.25);font-style:italic;text-align:center">${DE
+          ? `Abgeglichen mit ${invoices.filter(i => i._f && i._f.iban).length} Belegen mit IBAN im aktuellen Stapel · aktualisiert sich bei jedem Upload`
+          : `Checked against ${invoices.filter(i => i._f && i._f.iban).length} documents with an IBAN in this batch · updates with every upload`}</div>
       </div>`;
+    body.querySelectorAll('[data-goto]').forEach(el => el.addEventListener('click', () => {
+      selectInvoice(+el.dataset.goto);
+      buildExtraction(invoices.find(i => i.id === +el.dataset.goto), 'iban');
+    }));
   } else if (activeTab === 'email') {
-    // Generate professional email to vendor about invoice issues
-    const issues = inv.checks.filter(c => c.s === 'err' || c.s === 'warn');
-    const issueLines = issues.map(c => `• ${c.t}: ${c.d}`).join('\n');
-    const subjEN = `RE: Invoice ${inv.invNum} — Action Required`;
-    const subjDE = `BETREFF: Rechnung ${inv.invNum} — Handlungsbedarf`;
-    const subjectLine = currentLang === 'DE' ? subjDE : subjEN;
-
-    let emailBody;
-    if (currentLang === 'DE') {
-      emailBody = `Sehr geehrte Damen und Herren,
-
-wir beziehen uns auf die von Ihnen eingereichte Rechnung mit der Nummer ${inv.invNum} vom ${inv.date || '—'}.
-
-Bei der Prüfung dieser Rechnung haben wir folgende Punkte festgestellt, die einer Klärung bedürfen:
-
-${issueLines || '• Allgemeine Überprüfung erforderlich'}
-
-Wir bitten Sie, die genannten Punkte umgehend zu klären und uns die erforderlichen Informationen oder Korrekturen zuzusenden.
-
-Bitte antworten Sie auf diese E-Mail oder kontaktieren Sie uns unter ap@quellberg.de.
-
-Mit freundlichen Grüßen
-Kreditorenbuchhaltung
-Quellberg GmbH`;
-    } else {
-      emailBody = `Dear ${inv.vendor},
-
-We are writing regarding your invoice number ${inv.invNum} dated ${inv.date || '—'}.
-
-During our review process, we identified the following items that require your attention:
-
-${issueLines || '• General review required'}
-
-Please address the above points at your earliest convenience and provide any required documentation or corrections by return email.
-
-For any questions, please contact our Accounts Payable team at ap@quellberg.com.
-
-Kind regards,
-Accounts Payable
-Quellberg GmbH`;
-    }
+    const mail = buildVendorEmail(inv, currentLang);
+    const subjectLine = mail.subject, emailBody = mail.body;
 
     body.innerHTML = `
       <div class="email-composer">
@@ -2157,6 +2131,7 @@ Quellberg GmbH`;
           </button>
           <button class="email-regen-btn" id="emailRegenBtn" data-i18n="emailRegen">${t('emailRegen')}</button>
         </div>
+        ${mail.internal ? `<div style="font-size:10.5px;line-height:1.5;color:var(--fg-3);border:1px dashed var(--border);border-radius:6px;padding:7px 10px">🔒 ${mail.internal}</div>` : ''}
       </div>`;
 
     document.getElementById('emailCopyBtn').addEventListener('click', () => {
@@ -2611,10 +2586,174 @@ function updatePoHint() {
 }
 
 
-function ringOf(inv) {
+/* ── IBAN ring: every document sharing an account, recomputed from the live batch on each call ── */
+function ibanDocs(inv) {
   if (!inv || !inv._f || !inv._f.iban) return [];
-  return invoices.filter(o => o !== inv && o._f && o._f.iban === inv._f.iban && !APEngine.sameVendor(o.vendor, inv.vendor))
-                 .map(o => ({ vendor: o.vendor, invNum: o.invNum }));
+  return invoices.filter(o => o !== inv && o._f && o._f.iban === inv._f.iban)
+    .map(o => ({ id: o.id, vendor: o.vendor, invNum: o.invNum, file: o.file, date: o.date, gross: o.gross, status: o.status,
+                 sameVendor: APEngine.sameVendor(o.vendor, inv.vendor) }));
+}
+function ringOf(inv) { return ibanDocs(inv).filter(d => !d.sameVendor); }   // other companies only
+function ibanRingsInBatch() {
+  const groups = {};
+  invoices.forEach(o => { if (o._f && o._f.iban) (groups[o._f.iban] = groups[o._f.iban] || []).push(o); });
+  return Object.entries(groups).map(([iban, docs]) => {
+    const byVendor = [];
+    docs.forEach(d => {
+      let v = byVendor.find(x => APEngine.sameVendor(x.vendor, d.vendor));
+      if (!v) byVendor.push(v = { vendor: d.vendor, docs: [] });
+      v.docs.push({ id: d.id, invNum: d.invNum, file: d.file });
+    });
+    return { iban, docs, byVendor, vendorCount: byVendor.length, total: docs.reduce((s, d) => s + (d.gross || 0), 0) };
+  }).filter(r => r.vendorCount > 1).sort((a, b) => b.vendorCount - a.vendorCount || b.docs.length - a.docs.length);
+}
+
+/* ── Vendor email: one paragraph per finding, written from the extracted numbers.
+      Never names other vendors (the shared-IBAN details stay internal). ── */
+function buildVendorEmail(inv, lang) {
+  const DE = lang === 'DE', f = inv._f || {};
+  const d = s => !s ? '—' : DE ? s.split('-').reverse().join('.') : s;
+  const eu = n => { if (n == null) return '—';
+    const s = n.toLocaleString(DE ? 'de-DE' : 'en-GB', { minimumFractionDigits: 2, maximumFractionDigits: n !== 0 && Math.abs(n) < 0.1 ? 4 : 2 });
+    return DE ? s + ' €' : '€' + s; };
+  const qty = n => n == null ? '—' : n.toLocaleString(DE ? 'de-DE' : 'en-GB');
+  const onDoc = f.docKind === 'invoice' ? (DE ? 'auf der Rechnung' : 'on the invoice') : (DE ? 'auf dem Beleg' : 'on the document');
+  const has = (id, s) => inv.checks.some(c => c.id === id && (!s || c.s === s));
+  const issues = [];
+  const add = (de, en) => issues.push(DE ? de : en);
+  const no = inv.invNum !== '—' ? inv.invNum : null;
+
+  if (f.noText) {
+    add('Das übermittelte Dokument konnten wir nicht lesen. Bitte senden Sie uns die Rechnung als PDF-Datei.',
+        'We could not read the document you sent. Please send us the invoice as a PDF file.');
+  }
+  if (has('doctype', 'err') && f.docKind === 'delivery') {
+    add(`Uns liegt Ihr Lieferschein ${no || ''} vom ${d(f.date)} vor, jedoch keine Rechnung. Ein Lieferschein ist keine Zahlungsgrundlage. Bitte senden Sie uns die zugehörige Rechnung${f.po ? ` mit Bezug auf unsere Bestellung ${f.po}` : ''}.`,
+        `We have received your delivery note ${no || ''} dated ${d(f.date)}, but no invoice. A delivery note cannot be paid. Please send us the corresponding invoice${f.po ? ` referencing our order ${f.po}` : ''}.`);
+  } else if (has('doctype', 'err')) {
+    add(`Bei dem Dokument ${no || ''} vom ${d(f.date)} handelt es sich um ein Angebot, nicht um eine Rechnung. Auf dieser Grundlage können wir keine Zahlung leisten. Bitte stellen Sie nach erbrachter Leistung eine Rechnung${f.po ? ` mit Bezug auf unsere Bestellung ${f.po}` : ''}.`,
+        `Document ${no || ''} dated ${d(f.date)} is a quotation, not an invoice, so we cannot pay it. Please send an invoice once the work has been completed${f.po ? `, referencing our order ${f.po}` : ''}.`);
+  } else if (has('doctype', 'warn') && !f.noText) {
+    add('Wir konnten das Dokument nicht eindeutig als Rechnung erkennen. Bitte senden Sie uns eine Rechnung mit allen Pflichtangaben.',
+        'We could not identify the document as an invoice. Please send us an invoice containing all mandatory details.');
+  }
+  if (has('duplicate', 'err')) {
+    const o = invoices.find(x => x !== inv && x._f && x._f.docKind === 'invoice' && APEngine.sameVendor(x.vendor, inv.vendor) &&
+      ((x.invNum === inv.invNum) || (x.gross != null && Math.abs(x.gross - (inv.gross || 0)) < 0.01 && (x.po || '') === (inv.po || ''))));
+    add(`Die Rechnung ${no} vom ${d(f.date)} stimmt in Betrag (${eu(inv.gross)})${f.po ? ` und Bestellung (${f.po})` : ''} mit Ihrer Rechnung ${o ? o.invNum + ' vom ' + d(o.date) : 'aus einer früheren Lieferung'} überein. Wir gehen von einer Doppelberechnung aus und werden diese Rechnung nicht bezahlen. Sollte es sich um eine weitere Leistung handeln, senden Sie uns bitte den entsprechenden Nachweis.`,
+        `Invoice ${no} dated ${d(f.date)} matches your invoice ${o ? o.invNum + ' dated ' + d(o.date) : 'received earlier'} in amount (${eu(inv.gross)})${f.po ? ` and order (${f.po})` : ''}. We assume it was billed twice and will not pay it. If it covers a separate delivery or service, please send us the supporting evidence.`);
+  } else if (has('duplicate', 'warn')) {
+    add('Wir haben zu dieser Rechnung eine weitere, inhaltsgleiche Rechnung erhalten. Wir werden den Betrag nur einmal zahlen; bitte stornieren Sie die doppelte Rechnung.',
+        'We have received a second invoice with identical content. We will pay the amount only once; please cancel the duplicate.');
+  }
+  if (has('iban_fmt', 'err')) {
+    add(`Die ${onDoc} angegebene IBAN ${inv.iban} ist ungültig (die Prüfziffer stimmt nicht). Bitte bestätigen Sie uns Ihre korrekte Bankverbindung schriftlich auf Ihrem Firmenbriefbogen.`,
+        `The IBAN ${onDoc}, ${inv.iban}, is not valid (the check digits do not match). Please confirm your correct bank details in writing on your company letterhead.`);
+  }
+  if (has('iban_ring', 'err')) {
+    add(`Die ${onDoc} angegebene Bankverbindung (${inv.iban}) können wir Ihrem Unternehmen derzeit nicht eindeutig zuordnen. Bitte bestätigen Sie uns Ihre Bankverbindung schriftlich auf Ihrem Firmenbriefbogen, unterschrieben von einer vertretungsberechtigten Person. Zusätzlich rufen wir Sie unter der uns bekannten Telefonnummer zur Bestätigung an.`,
+        `We are currently unable to verify that the bank account ${onDoc} (${inv.iban}) belongs to your company. Please confirm your bank details in writing on your company letterhead, signed by an authorised person. We will also call you on the phone number we have on file to confirm.`);
+  }
+  if (has('mandatory', 'warn')) {
+    const priced = (f.lines || []).filter(l => l.t != null);
+    const miss = [
+      [!f.invNum, 'Rechnungsnummer', 'invoice number'], [!f.date, 'Rechnungsdatum', 'invoice date'],
+      [!f.taxId, 'Steuernummer bzw. USt-IdNr. des leistenden Unternehmens', 'your tax number or VAT ID'],
+      [f.gross == null, 'Bruttobetrag (Gesamtbetrag inkl. Umsatzsteuer)', 'gross total (amount including VAT)'],
+      [f.vat == null && !f.reverseCharge, 'ausgewiesener Umsatzsteuerbetrag', 'VAT amount'],
+      [!priced.length, 'Einzelpreise und Positionsbeträge', 'unit prices and line amounts'],
+      [!f.iban, 'Bankverbindung (IBAN)', 'bank details (IBAN)'],
+    ].filter(x => x[0]).map(x => DE ? x[1] : x[2]);
+    if (miss.length) add(`Die Rechnung enthält nicht alle Pflichtangaben nach § 14 Abs. 4 UStG. Es ${miss.length > 1 ? 'fehlen' : 'fehlt'}: ${miss.join(', ')}. Ohne diese Angaben können wir die Vorsteuer nicht geltend machen. Bitte senden Sie uns eine vollständige, korrigierte Rechnung.`,
+                         `The invoice does not contain all details required by § 14 (4) of the German VAT Act. Missing: ${miss.join(', ')}. Without them we cannot reclaim the input VAT. Please send us a complete, corrected invoice.`);
+  }
+  if (has('math', 'err')) {
+    const sum = Math.round((f.lines || []).filter(l => l.t != null).reduce((s, l) => s + l.t, 0) * 100) / 100;
+    if (f.net != null && Math.abs(sum - f.net) > 0.02)
+      add(`Die Summe der Einzelpositionen beträgt ${eu(sum)}, als Nettobetrag sind jedoch ${eu(f.net)} ausgewiesen (Differenz ${eu(Math.round((f.net - sum) * 100) / 100)}). Bitte prüfen Sie die Berechnung und senden Sie uns eine korrigierte Rechnung.`,
+          `The line items add up to ${eu(sum)}, but the net amount stated is ${eu(f.net)} (difference ${eu(Math.round((f.net - sum) * 100) / 100)}). Please check the calculation and send us a corrected invoice.`);
+    else add('Mindestens eine Position ist rechnerisch nicht korrekt (Menge × Einzelpreis ≠ Positionsbetrag). Bitte prüfen Sie die Berechnung und senden Sie uns eine korrigierte Rechnung.',
+             'At least one line is not calculated correctly (quantity × unit price ≠ line amount). Please check the calculation and send us a corrected invoice.');
+  }
+  if (has('vat', 'err')) {
+    const exp = Math.round((f.net || 0) * (f.vatRate || 0)) / 100;
+    add(f.reverseCharge
+      ? `Die Rechnung verweist auf das Reverse-Charge-Verfahren, weist aber dennoch Umsatzsteuer von ${eu(f.vat)} aus. Bitte senden Sie uns eine korrigierte Rechnung ohne Umsatzsteuer.`
+      : `Die ausgewiesene Umsatzsteuer von ${eu(f.vat)} entspricht nicht ${f.vatRate} % des Nettobetrags von ${eu(f.net)}; richtig wären ${eu(exp)}. Bitte senden Sie uns eine korrigierte Rechnung.`,
+      f.reverseCharge
+      ? `The invoice refers to the reverse-charge procedure but still charges VAT of ${eu(f.vat)}. Please send us a corrected invoice without VAT.`
+      : `The VAT stated, ${eu(f.vat)}, is not ${f.vatRate}% of the net amount of ${eu(f.net)}; it should be ${eu(exp)}. Please send us a corrected invoice.`);
+  }
+  if (has('gross', 'err')) {
+    const exp = Math.round(((f.net || 0) + (f.vat || 0)) * 100) / 100;
+    add(`Nettobetrag zuzüglich Umsatzsteuer ergibt ${eu(exp)}, ausgewiesen sind ${eu(f.gross)}. Bitte senden Sie uns eine korrigierte Rechnung.`,
+        `Net amount plus VAT comes to ${eu(exp)}, but the invoice states ${eu(f.gross)}. Please send us a corrected invoice.`);
+  }
+  if (has('po', 'warn') && !f.po) {
+    add('Auf der Rechnung ist keine Quellberg-Bestellnummer angegeben, und wir finden zu dieser Lieferung keine offene Bestellung. Bitte teilen Sie uns mit, wer bei Quellberg die Leistung bestellt hat, und geben Sie künftig unsere Bestellnummer (QB-…) auf der Rechnung an.',
+        'The invoice does not show a Quellberg order number, and we cannot find an open order for this delivery. Please tell us who at Quellberg placed the order, and include our order number (QB-…) on future invoices.');
+  } else if (has('po', 'err')) {
+    const po = APEngine.getPOs()[f.po];
+    add(po ? `Die angegebene Bestellnummer ${f.po} ist nicht Ihrem Unternehmen zugeordnet. Bitte prüfen Sie die Angabe und senden Sie uns eine korrigierte Rechnung.`
+           : `Die angegebene Bestellnummer ${f.po} ist bei uns nicht bekannt. Bitte prüfen Sie die Angabe und senden Sie uns eine korrigierte Rechnung.`,
+        po ? `Order number ${f.po} does not belong to your company. Please check it and send us a corrected invoice.`
+           : `We do not have an order with the number ${f.po}. Please check it and send us a corrected invoice.`);
+  }
+  if (has('po_value', 'warn')) {
+    add(`Zu unserer Rahmenbestellung ${f.po} liegt intern noch keine Wertfreigabe für ${eu(f.net)} netto vor. Wir klären dies und melden uns; bitte halten Sie die Lieferscheine zu allen ${(f.lines || []).length} Positionen bereit.`,
+        `Our framework order ${f.po} does not yet have an approved value covering ${eu(f.net)} net. We are clarifying this internally and will get back to you; please have the delivery notes for all ${(f.lines || []).length} items ready.`);
+  }
+  (f.poMatch ? f.poMatch.lines : []).forEach(l => {
+    if (l.poUnit > 0 && l.hits.length && l.invQty > l.poQty)
+      add(`„${l.article}“: bestellt haben wir ${qty(l.poQty)} Stück, berechnet sind ${qty(l.invQty)} Stück (Mehrmenge ${qty(l.invQty - l.poQty)}). Bitte senden Sie uns eine korrigierte Rechnung über die bestellte Menge oder eine schriftliche Bestätigung der Mehrmenge durch unseren Einkauf.`,
+          `"${l.article}": we ordered ${qty(l.poQty)} units, the invoice charges ${qty(l.invQty)} (${qty(l.invQty - l.poQty)} more). Please send a corrected invoice for the ordered quantity, or written confirmation of the extra quantity from our purchasing team.`);
+    if (l.poUnit > 0 && l.invUnit != null && Math.abs(l.invUnit - l.poUnit) / l.poUnit > 0.005)
+      add(`„${l.article}“: vereinbart ist ein Einzelpreis von ${eu(l.poUnit)}, berechnet sind ${eu(Math.round(l.invUnit * 10000) / 10000)}. Bitte berechnen Sie den vereinbarten Preis.`,
+          `"${l.article}": the agreed unit price is ${eu(l.poUnit)}, the invoice charges ${eu(Math.round(l.invUnit * 10000) / 10000)}. Please invoice the agreed price.`);
+  });
+  if (has('po_extra', 'warn') && f.poMatch) {
+    const hit = new Set(f.poMatch.lines.flatMap(l => l.hits));
+    const ex = (f.lines || []).filter(l => !hit.has(l.pos));
+    if (ex.length && (f.docKind !== 'invoice' && f.docKind !== 'quote' || ex.every(l => l.t == null))) add(`Folgende gelieferte Positionen sind nicht Bestandteil unserer Bestellung ${f.po}:\n${ex.map(l => `   – Pos. ${l.pos} „${l.d}“${l.q != null ? ` (${qty(l.q)} Stück)` : ''}`).join('\n')}\nBitte teilen Sie uns mit, auf welcher Grundlage diese Positionen geliefert wurden. Ohne Bestellung können wir sie nicht vergüten.`,
+                       `The following delivered items are not part of our order ${f.po}:\n${ex.map(l => `   – item ${l.pos} "${l.d}"${l.q != null ? ` (${qty(l.q)} units)` : ''}`).join('\n')}\nPlease tell us on what basis they were delivered. Without an order we cannot pay for them.`);
+    else if (ex.length) add(`Folgende Positionen sind nicht Bestandteil unserer Bestellung ${f.po}:\n${ex.map(l => `   – Pos. ${l.pos} „${l.d}“${l.t != null ? ` (${eu(l.t)})` : ''}`).join('\n')}\nBitte senden Sie uns die Grundlage für diese Berechnung (z. B. eine schriftliche Auftragserweiterung) oder eine um diese Positionen korrigierte Rechnung.`,
+                       `The following items are not part of our order ${f.po}:\n${ex.map(l => `   – item ${l.pos} "${l.d}"${l.t != null ? ` (${eu(l.t)})` : ''}`).join('\n')}\nPlease send us the basis for charging them (e.g. a written order extension) or an invoice corrected to exclude them.`);
+  }
+  if (has('po_total', 'warn') && !has('po_extra', 'warn') && !(f.poMatch && f.poMatch.lines.some(l => l.invQty > l.poQty))) {
+    add(`Der Nettobetrag von ${eu(f.net)} übersteigt den Wert unserer Bestellung ${f.po}. Bitte erläutern Sie die Differenz.`,
+        `The net amount of ${eu(f.net)} exceeds the value of our order ${f.po}. Please explain the difference.`);
+  }
+
+  const kind = f.docKind === 'delivery' ? (DE ? 'Ihrem Lieferschein' : 'your delivery note')
+             : f.docKind === 'quote' ? (DE ? 'Ihrem Angebot' : 'your quotation') : (DE ? 'Ihrer Rechnung' : 'your invoice');
+  const blocked = inv.checks.some(c => c.s === 'err');
+  const ref = DE
+    ? [`Beleg:       ${no || '—'} vom ${d(f.date)}`, `Betrag:      ${inv.gross != null ? eu(inv.gross) + ' brutto' : '—'}`, `Bestellung:  ${f.po || '— (keine Angabe)'}`].join('\n')
+    : [`Document:  ${no || '—'} dated ${d(f.date)}`, `Amount:    ${inv.gross != null ? eu(inv.gross) + ' gross' : '—'}`, `Order:     ${f.po || '— (not stated)'}`].join('\n');
+  const sign = DE ? 'Mit freundlichen Grüßen\n\nKreditorenbuchhaltung\nQuellberg GmbH · Getränkemanufaktur\nLimonadenweg 3 · 94032 Passau\nap@quellberg.de'
+                  : 'Kind regards\n\nAccounts Payable\nQuellberg GmbH · Getränkemanufaktur\nLimonadenweg 3 · 94032 Passau, Germany\nap@quellberg.de';
+
+  if (!issues.length && inv.status === 'approve') {
+    return {
+      subject: DE ? `Zahlungsavis zu Ihrer Rechnung ${no}` : `Payment advice for your invoice ${no}`,
+      body: DE
+        ? `Sehr geehrte Damen und Herren,\n\nwir haben Ihre Rechnung geprüft und zur Zahlung freigegeben.\n\n${ref}\n\nDer Betrag wird mit unserem nächsten Zahlungslauf auf Ihr Konto ${inv.iban} überwiesen.\n\nVielen Dank für die gute Zusammenarbeit.\n\n${sign}`
+        : `Dear Sir or Madam,\n\nwe have checked your invoice and approved it for payment.\n\n${ref}\n\nThe amount will be transferred to your account ${inv.iban} in our next payment run.\n\nThank you for working with us.\n\n${sign}`,
+      internal: null,
+    };
+  }
+  const list = issues.map((s, i) => `${i + 1}. ${s}`).join('\n\n');
+  return {
+    subject: DE ? `Rückfrage zu ${kind} ${no || ''}${f.po ? ' – Bestellung ' + f.po : ''}`.replace(/\s+/g, ' ').trim()
+                : `Query regarding ${kind} ${no || ''}${f.po ? ' – order ' + f.po : ''}`.replace(/\s+/g, ' ').trim(),
+    body: DE
+      ? `Sehr geehrte Damen und Herren,\n\nbei der Prüfung ${f.docKind === 'invoice' ? 'Ihrer Rechnung' : f.docKind === 'delivery' ? 'Ihres Lieferscheins' : f.docKind === 'quote' ? 'Ihres Angebots' : 'Ihres Belegs'} ${issues.length === 1 ? 'ist uns folgender Punkt' : 'sind uns folgende Punkte'} aufgefallen:\n\n${ref}\n\n${list}\n\n${blocked ? 'Bis zur Klärung ist die Zahlung ausgesetzt.' : 'Nach Klärung geben wir die Rechnung umgehend zur Zahlung frei.'} Bitte antworten Sie auf diese E-Mail und nennen Sie dabei die Belegnummer ${no || ''}.\n\n${sign}`
+      : `Dear Sir or Madam,\n\nwhile checking ${kind}, we noticed the following ${issues.length === 1 ? 'point' : 'points'}:\n\n${ref}\n\n${list}\n\n${blocked ? 'Payment is on hold until this is resolved.' : 'Once this is resolved, we will release the invoice for payment straight away.'} Please reply to this email quoting document number ${no || ''}.\n\n${sign}`,
+    internal: has('iban_ring', 'err')
+      ? (DE ? `Intern: ${ringOf(inv).length} weitere Belege von ${new Set(ringOf(inv).map(r => r.vendor)).size} anderen Unternehmen nutzen dieselbe IBAN (Reiter „IBAN Ring“). Die Namen stehen bewusst nicht in der E-Mail. Rückruf nur unter selbst recherchierter Nummer.`
+            : `Internal: ${ringOf(inv).length} other documents from ${new Set(ringOf(inv).map(r => r.vendor)).size} other companies use the same IBAN (see "IBAN Ring" tab). Their names are deliberately left out of the email. Call back only on a number you look up yourself.`)
+      : null,
+  };
 }
 
 // Drag events on the sidebar drop zone
@@ -2767,13 +2906,14 @@ document.getElementById('copyAllBtn').addEventListener('click', () => {
       }),
     ];
   } else if (activeTab === 'iban') {
-    const copyRing = ringOf(inv);
+    const copyDocs = ibanDocs(inv);
     lines = [
-      `IBAN Ring — ${inv.invNum} (${inv.vendor})`,
+      `IBAN Ring — ${inv.invNum} (${inv.vendor}, ${inv.file})`,
       `─────────────────────────────`,
-      `IBAN: ${inv.iban}`,
-      `Status: ${inv.ibanShared ? 'SHARED — BEC Risk' : 'UNIQUE — Clean'}`,
-      ...(copyRing.length ? ['', 'Ring Members:', ...copyRing.map(m=>`  • ${m.vendor} · ${m.invNum}`)] : []),
+      `IBAN: ${inv.iban || '—'}`,
+      `Status: ${inv.ibanShared ? `SHARED — ${1 + copyDocs.length} documents, ${1 + new Set(copyDocs.filter(d => !d.sameVendor).map(d => d.vendor)).size} companies` : inv.ibanInvalid ? 'INVALID — checksum fails' : !inv.iban ? 'NO IBAN' : 'UNIQUE — Clean'}`,
+      ...(copyDocs.length ? ['', 'Documents with the same IBAN:', ...copyDocs.map(m => `  • ${m.vendor} · ${m.invNum} · ${m.date || '—'} · € ${m.gross != null ? fmt(m.gross) : '—'} · ${m.file}`)] : []),
+      ...(ibanRingsInBatch().length ? ['', 'Shared accounts in the batch:', ...ibanRingsInBatch().map(r => `  • ${APEngine.fmtIban(r.iban)} — ${r.vendorCount} companies, ${r.docs.length} documents: ${r.byVendor.map(v => `${v.vendor} (${v.docs.map(d => d.invNum).join(', ')})`).join('; ')}`)] : []),
       '',
       `Checked across ${invoices.length} documents in current batch`,
     ];
