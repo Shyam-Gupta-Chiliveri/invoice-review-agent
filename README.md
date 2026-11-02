@@ -36,6 +36,10 @@ Cross-document checks re-run whenever the batch changes, so an invoice can move 
 Open `index.html` in a modern browser (no build step), or `python3 -m http.server 8080`.
 Drop PDF invoices (and optionally a `;`-separated PO CSV with columns `Bestellnummer;Lieferant;Artikel;Menge;Einzelpreis_netto_EUR`) onto the queue.
 
+## Sample data
+
+The `data/` folder holds the 15 test PDFs, `bestellungen.csv` and one photographed invoice — see `data/README.md`.
+
 ## Limits
 
 - **Scans / photos** have no text layer; they are flagged for manual review (no OCR in this build).
