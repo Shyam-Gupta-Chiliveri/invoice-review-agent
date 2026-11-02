@@ -22,7 +22,7 @@ pip install -r skill/requirements.txt
 python skill/scripts/review.py data --out results
 ```
 
-**Browser:** open the live link. Locally, `docker compose up -d --build` then http://localhost:8090. Photo OCR needs http, not a double-clicked file.
+**Browser:** open the live link. Locally, `docker compose up -d --build` then http://localhost:8090. Photo OCR needs http, not a double-clicked file. The chat button (bottom right) answers questions about the app and the uploaded batch: it retrieves from the app docs and one chunk per document, shared IBAN and order (BM25), then answers from those facts with sources. Inside Claude, Claude writes the answer from the retrieved facts; elsewhere it is composed without a model.
 
 ## Checks
 
