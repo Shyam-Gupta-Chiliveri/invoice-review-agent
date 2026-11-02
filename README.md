@@ -1,6 +1,6 @@
 # DECAID Academy — Quellberg Invoice Review
 
-A **Forward Deployed AI Engineer** demo: an intelligent accounts-payable review tool that simulates a multi-agent pipeline for invoice processing.
+A **Forward Deployed AI Engineer** demo: an accounts-payable review tool that reads each uploaded invoice, checks it against the purchase orders and the rest of the batch, and decides approve, hold or critical.
 
 ## Live Demo
 
