@@ -38,7 +38,7 @@ Drop PDF invoices (and optionally a `;`-separated PO CSV with columns `Bestellnu
 
 ## Sample data
 
-The `data/` folder holds the 15 test PDFs, `bestellungen.csv` and one photographed invoice — see `data/README.md`.
+The `data/` folder holds the 16 test receipts (15 PDFs + 1 photo) and `bestellungen.csv` — see `data/README.md`.
 
 ## Limits
 
