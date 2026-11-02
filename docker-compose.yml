@@ -1,0 +1,27 @@
+name: invoice-review-agent
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: invoice-review-agent:latest
+    container_name: invoice-review-agent
+    restart: unless-stopped
+    ports:
+      - "8090:80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/healthz"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: invoice-review-agent-tunnel
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --protocol quic --url http://web:80
+    depends_on:
+      web:
+        condition: service_healthy
