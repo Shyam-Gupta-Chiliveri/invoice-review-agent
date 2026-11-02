@@ -9,49 +9,38 @@ Or view the hosted version: [Quellberg Invoice Review](https://htmlpreview.githu
 
 ## What it does
 
-- **16 pre-loaded demo invoices** with realistic German Rechnung data (vendors, IBANs, VAT calculations, PO matching)
-- **Multi-agent pipeline** with animated step-by-step processing: Reader → Validation → IBAN Ring → Verdict → Audit Trail → Email
-- **Real-time document viewer** — upload a PDF or image and see it rendered alongside extracted fields
-- **IBAN Ring detection** — flags invoices sharing bank accounts across vendors (fraud signal)
-- **Fuzzy vendor matching** — uploaded files are matched to existing invoices by vendor keyword
-- **Audit trail & email draft** generated per invoice
-- **Dark / light theme**, bilingual UI (EN / DE), search + filter queue
+Nothing is pre-loaded. Every result comes from a document you upload:
+
+1. **Reader** — PDF.js renders each page and extracts the text layer; fields (document type, vendor, invoice no., date, PO, tax no., net / VAT / gross, IBAN) and every line item are parsed from the real text, German and English number formats alike.
+2. **Validation** — each document is checked against the purchase-order master (`bestellungen.csv`, embedded; drop your own CSV to replace it): PO exists and belongs to the vendor, quantity and unit price vs. order, items not on the order, total vs. authorised value, line arithmetic, VAT, gross, §14 UStG mandatory fields, document type (Lieferschein / Angebot are not payable).
+3. **IBAN Ring** — ISO 13616 mod-97 checksum, plus cross-document detection of one bank account used by several vendors.
+4. **Duplicates** — same vendor + same PO/amount or invoice number across the batch.
+5. **Verdict** — deterministic: any error → Critical, any warning → Hold, otherwise Approve. No LLM in the verdict.
+6. **Audit trail & email** — real per-step log and a vendor query listing the actual findings.
+
+Cross-document checks re-run whenever the batch changes, so an invoice can move from Hold to Critical when a later upload reveals a shared IBAN or a duplicate.
 
 ## Agent pipeline tabs
 
 | Tab | Agent | Purpose |
 |-----|-------|---------|
-| Extracted Fields | READER | OCR field extraction with confidence scores |
-| Validation | VALIDATION | VAT calc, PO qty match, anomaly flags |
-| IBAN Ring | IBAN RING | Cross-vendor IBAN deduplication |
-| Verdict | VERDICT | Risk score + approve / hold / critical decision |
-| Audit Trail | AUDIT TRAIL | Timestamped event log |
-| Email | EMAIL | Drafted supplier communication |
+| Extracted Fields | READER | Fields, line items, PO-vs-document table; highlights on the rendered PDF |
+| Validation | VALIDATION | Every check with its evidence |
+| IBAN Ring | IBAN RING | Checksum + vendors sharing the account |
+| Verdict | VERDICT | Approve / hold / critical with reasons |
+| Audit Trail | AUDIT TRAIL | Timestamped steps for this document |
+| Email | EMAIL | Drafted supplier query |
 
 ## How to run
 
-```bash
-# Just open the file — no build step, no dependencies
-open index.html
-```
+Open `index.html` in a modern browser (no build step), or `python3 -m http.server 8080`.
+Drop PDF invoices (and optionally a `;`-separated PO CSV with columns `Bestellnummer;Lieferant;Artikel;Menge;Einzelpreis_netto_EUR`) onto the queue.
 
-Or serve locally:
-```bash
-python3 -m http.server 8080
-# then open http://localhost:8080
-```
+## Limits
 
-## Upload your own invoices
-
-Drop a PDF, TIFF, PNG, or JPG into the **Document Queue** drop zone.  
-The pipeline runs with animated steps and auto-matches to demo vendor data where possible.
-
-## Deliberate omissions
-
-- **No real LLM calls** — all extraction is pre-baked demo data; the pipeline animation simulates agent latency
-- **No backend** — fully client-side, single HTML file
-- **No persistence** — state resets on refresh (by design for a demo)
-- **PDF rendering** — uses PDF.js (cdnjs) to render page 1; multi-page navigation not implemented
+- **Scans / photos** have no text layer; they are flagged for manual review (no OCR in this build).
+- **No persistence** — state resets on refresh.
+- Layout parsing is rule-based for German/English invoices with a `Pos … Menge … Gesamt` table.
 
 ## Quality measurement
 
@@ -59,10 +48,10 @@ The demo measures quality through UI signals that mirror what a real AP system w
 
 - **Field confidence badges** (green / amber / red) on each extracted field
 - **Check pass/fail counts** in the Validation tab
-- **IBAN Ring exposure** shown in the top bar (€ value at risk)
+- **IBAN risk exposure** in the bottom bar (€ at risk from shared or invalid IBANs)
 - **Verdict distribution** (approve / hold / critical) across the invoice batch
 
 ---
 
-Built with: vanilla JS · PDF.js · Inter & IBM Plex Mono (Google Fonts)  
+Built with: vanilla JS · PDF.js 3.11 · Inter & IBM Plex Mono (Google Fonts)  
 No frameworks, no build toolchain.
