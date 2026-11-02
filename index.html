@@ -1635,22 +1635,21 @@ function buildDocPaper(inv) {
   /* ── MODE 0: ACTUAL UPLOADED FILE (data URL) ────────────── */
   if (inv._fileType) {
     el.className = 'doc-paper pdf-mode';
-    if (inv._fileType === 'image') {
-      if (inv._dataUrl) {
-        el.innerHTML = `<div class="pdf-viewer-wrap" style="display:flex;align-items:flex-start;justify-content:center;overflow:auto;height:100%">
-          <img src="${inv._dataUrl}" alt="${inv.file}" draggable="false" style="max-width:100%;height:auto;display:block;">
-        </div>`;
-      } else {
-        // Still reading — show spinner; FileReader.onload will call buildDocPaper again
-        el.innerHTML = `<div class="pdf-viewer-wrap" style="display:flex;align-items:center;justify-content:center;height:100%">
-          <div style="text-align:center;color:var(--fg-3)">
-            <div style="font-size:28px;margin-bottom:8px;animation:pipe-spin .8s linear infinite;display:inline-block">⟳</div>
-            <div style="font-size:13px">Loading image…</div>
-          </div>
-        </div>`;
-      }
+    if (inv._dataUrl) {
+      // ✅ Both images (FileReader) AND rendered PDFs (PDF.js canvas) — show the image
+      el.innerHTML = `<div class="pdf-viewer-wrap" style="display:flex;align-items:flex-start;justify-content:center;overflow:auto;height:100%">
+        <img src="${inv._dataUrl}" alt="${inv.file}" draggable="false" style="max-width:100%;height:auto;display:block;">
+      </div>`;
+    } else if (inv._fileType === 'image') {
+      // FileReader still loading — show spinner; FileReader.onload will call buildDocPaper again
+      el.innerHTML = `<div class="pdf-viewer-wrap" style="display:flex;align-items:center;justify-content:center;height:100%">
+        <div style="text-align:center;color:var(--fg-3)">
+          <div style="font-size:28px;margin-bottom:8px;animation:pipe-spin .8s linear infinite;display:inline-block">⟳</div>
+          <div style="font-size:13px">Loading image…</div>
+        </div>
+      </div>`;
     } else {
-      // PDF — render a clean styled placeholder (PDFs can't be embedded in sandboxed iframes)
+      // PDF — PDF.js still rendering; renderPdfPage will call buildDocPaper again once _dataUrl is set
       el.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:18px;padding:40px;box-sizing:border-box;background:var(--surface-2)">
         <svg width="72" height="88" viewBox="0 0 72 88" fill="none" xmlns="http://www.w3.org/2000/svg">
           <rect x="2" y="2" width="68" height="84" rx="6" fill="white" stroke="#d1d5db" stroke-width="2"/>
@@ -1662,7 +1661,10 @@ function buildDocPaper(inv) {
           <rect x="12" y="76" width="42" height="3" rx="1.5" fill="#e5e7eb"/>
         </svg>
         <div style="font-size:13px;font-weight:600;color:var(--fg);text-align:center;word-break:break-all;max-width:280px">${inv.file}</div>
-        <div style="font-size:11px;color:var(--fg-3);text-align:center;line-height:1.5">PDF uploaded · Processed by agent pipeline<br>Extracted fields &amp; analysis shown in right panel →</div>
+        <div style="font-size:11px;color:var(--fg-3);text-align:center;line-height:1.5;display:flex;align-items:center;gap:6px">
+          <span style="display:inline-block;width:10px;height:10px;border:2px solid var(--fg-3);border-top-color:transparent;border-radius:50%;animation:pipe-spin .8s linear infinite;flex-shrink:0"></span>
+          Rendering PDF…
+        </div>
       </div>`;
     }
     return;
@@ -2264,9 +2266,16 @@ const sdStatusRow = document.getElementById('sdStatusRow');
 /* ── PDF.js setup (render real uploaded PDFs to canvas) ─ */
 (function() {
   if (typeof pdfjsLib === 'undefined') return;
-  // Try external worker (allowed when cdnjs provides CORS headers)
-  pdfjsLib.GlobalWorkerOptions.workerSrc =
-    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.js';
+  // Wrap the external worker in a blob: URL so it loads reliably in sandboxed iframes
+  // and cross-origin restricted environments (htmlpreview, artifact frames, etc.)
+  const workerCdn = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.js';
+  try {
+    const blob = new Blob([`importScripts('${workerCdn}')`], { type: 'application/javascript' });
+    pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(blob);
+  } catch(e) {
+    // Fallback: direct CDN URL (works in non-sandboxed environments)
+    pdfjsLib.GlobalWorkerOptions.workerSrc = workerCdn;
+  }
 })();
 
 async function renderPdfPage(file, inv) {
