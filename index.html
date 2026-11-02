@@ -2492,7 +2492,9 @@ function getOcrWorker() {
     const base = new URL('vendor/ocr/', location.href).href;
     _ocrWorker = Tesseract.createWorker('deu', 1, {
       workerPath: base + 'worker.min.js', corePath: base + 'tesseract-core-lstm.wasm.js',
-      langPath: base.replace(/\/$/, ''), gzip: true, cacheMethod: 'none',
+      // model stored as .wasm so every host serves it (artifacts don't serve .gz); Tesseract appends
+      // '/deu.traineddata.gz' to langPath — the '#' makes the browser drop that part from the request
+      langPath: base + 'deu.traineddata.wasm#', gzip: true, cacheMethod: 'none',
     }).catch(e => { _ocrWorker = null; throw e; });
   }
   return _ocrWorker;
