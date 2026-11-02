@@ -2312,21 +2312,34 @@ function generateUploadInvoice(file) {
   const iban = `DE${~~(Math.random()*90)+10} ${r()} ${r()} ${r()} ${r()} ${~~(Math.random()*90)+10}`;
   const q = ~~(Math.random()*150)+10;
   const u = Math.round((net/q)*100)/100;
+  // Derive a realistic verdict from the actual numbers
+  const vatCalcOk  = Math.abs(Math.round(net*0.19*100)/100 - vat) < 0.02;
+  const unitOk     = Math.abs(u - Math.round(net/q*100)/100) < 0.02;
+  const seed       = name.split('').reduce((a,c)=>a+c.charCodeAt(0),0);
+  const ibanRisk   = seed % 7 === 0; // ~14 % of new uploads flag IBAN risk
+  const poMismatch = seed % 11 === 0; // ~9 %  flag a PO mismatch
+  const uploadStatus = ibanRisk ? 'critical' : (poMismatch ? 'hold' : 'approve');
+  const uploadVerdict = ibanRisk
+    ? 'Critical — IBAN flagged in shared-account ring. Do not release payment without manual check.'
+    : poMismatch
+      ? 'Hold — PO quantity could not be verified. Awaiting confirmation from procurement.'
+      : 'Approve — All automated checks passed. No anomalies detected.';
   const inv = {
     id: newId, vendor, addr:'Deutschland', invNum, po, date:dateStr,
-    amount, net, vat, vatRate:19, file:name, iban, ibanShared:false,
+    amount, net, vat, vatRate:19, file:name, iban, ibanShared:ibanRisk,
     lines:[{d:`Lieferung gemäß Bestellung ${po}`, q, u, t:net}],
     status:'processing',
     poQty:q, poUnit:u, invQty:q, invUnit:u,
-    fieldConf:{vendor:'ok',invNum:'ok',date:'ok',po:'ok',net:'ok',vat:'ok',amount:'ok',iban:'ok'},
-    verdict:'Approve — All checks passed. No anomalies detected.',
+    fieldConf:{vendor:'ok',invNum:'ok',date:'ok',po:'ok',net:'ok',vat:'ok',amount:'ok',iban: ibanRisk?'err':'ok'},
+    verdict: uploadVerdict,
     checks:[
-      {s:'ok', t:'VAT Calculation', d:`€${fmt(net)} × 19% = €${fmt(vat)} ✓`},
-      {s:'ok', t:'Quantity Match',  d:`${q} units ordered → ${q} invoiced ✓`},
-      {s:'ok', t:'IBAN Check',      d:'Unique IBAN — no shared accounts detected ✓'},
-      {s:'ok', t:'PO Reference',    d:`PO ${po} found and validated ✓`},
+      {s: vatCalcOk?'ok':'warn', t:'VAT Calculation', d: vatCalcOk?`€${fmt(net)} × 19% = €${fmt(vat)} ✓`:`VAT mismatch: expected €${fmt(Math.round(net*0.19*100)/100)}, got €${fmt(vat)}`},
+      {s: unitOk?'ok':'warn',   t:'Quantity Match',   d: unitOk?`${q} units ordered → ${q} invoiced ✓`:`Unit price deviation detected`},
+      {s: ibanRisk?'err':'ok',  t:'IBAN Check',       d: ibanRisk?'IBAN matches account in shared-vendor ring ✗':'Unique IBAN — no shared accounts detected ✓'},
+      {s: poMismatch?'warn':'ok',t:'PO Reference',    d: poMismatch?`PO ${po} quantity unconfirmed — procurement check required`:`PO ${po} found and validated ✓`},
     ],
-    pipeline:[{l:'Reader',s:'ok'},{l:'Auditor',s:'ok'},{l:'IBAN Ring',s:'ok'},{l:'Verdict',s:'ok'}],
+    pipeline:[{l:'Reader',s:'ok'},{l:'Auditor',s: poMismatch?'warn':'ok'},{l:'IBAN Ring',s: ibanRisk?'err':'ok'},{l:'Verdict',s: uploadStatus==='approve'?'ok': uploadStatus==='hold'?'warn':'err'}],
+    _finalStatus: uploadStatus,
     _fileType: fileType,
     _dataUrl: null,
     _runSteps:[
@@ -2367,8 +2380,8 @@ function animateNewInvoice(inv) {
       buildQueue(currentFilter);
       setTimeout(advance, stepDelays[step] || 500);
     } else {
-      // All done — finalize invoice
-      inv.status = 'approve';
+      // All done — finalize with the verdict that was pre-computed for this upload
+      inv.status = inv._finalStatus || 'approve';
       inv._runSteps = null;
       buildQueue(currentFilter);
       if (currentId === inv.id) buildExtraction(inv, document.querySelector('.ext-tab.active')?.dataset.tab || 'fields');
@@ -2492,11 +2505,13 @@ document.getElementById('sdBrowse').addEventListener('click', e => {
   inp.click();
 });
 
-// Click on zone = browse
+// Click anywhere on the drop zone → open file browser
 sidebarDrop.addEventListener('click', e => {
-  if (e.target.closest('#sdBrowse')) return;
-  // Auto-demo on plain click so the reviewer can see it in action
-  runInlineUpload(invoices.filter(i=>i.status!=='processing').map(i => i.file));
+  if (e.target.closest('#sdBrowse')) return; // Browse btn handles itself
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.multiple = true; inp.accept = '.pdf,.tiff,.tif,.png,.jpg,.jpeg';
+  inp.onchange = () => { if (inp.files.length) runInlineUpload(Array.from(inp.files)); };
+  inp.click();
 });
 
 /* ── Init ──────────────────────────────────────────── */
