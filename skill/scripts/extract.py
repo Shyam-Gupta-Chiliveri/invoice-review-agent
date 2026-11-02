@@ -65,14 +65,18 @@ def parse_text(lines: list[str], doc: dict) -> dict:
     text = "\n".join(lines)
     first = lines[0] if lines else ""
 
-    m = re.search(r"\b(Gutschrift|Lieferschein|Angebot|Proforma|Mahnung|Rechnung|Invoice|Credit Note|Quotation|Delivery Note)\b", text, re.I)
-    doc["doc_type"] = m.group(1) if m else None
-    doc["doc_kind"] = DOC_TYPES.get(m.group(1).lower(), "unknown") if m else "unknown"
+    # OCR may split letters ("Rechn ung") → allow one optional space between letters
+    types = ["Gutschrift", "Lieferschein", "Angebot", "Proforma", "Mahnung", "Rechnung", "Invoice", "Credit Note", "Quotation", "Delivery Note"]
+    spaced = lambda w: r"\s?".join(r"\s+" if ch == " " else re.escape(ch) for ch in w)
+    m = re.search(r"\b(" + "|".join(spaced(t) for t in types) + r")\b", text, re.I)
+    raw = m.group(1) if m else None
+    doc["doc_type"] = next((t for t in types if raw and t.replace(" ", "").lower() == re.sub(r"\s+", "", raw).lower()), raw)
+    doc["doc_kind"] = DOC_TYPES.get((doc["doc_type"] or "").lower(), "unknown")
     doc["not_invoice_note"] = bool(re.search(r"nicht um eine Rechnung|not an invoice", text, re.I))
 
     vendor = first
-    if doc["doc_type"]:
-        vendor = re.sub(r"\s*\b" + re.escape(doc["doc_type"]) + r"\b\s*$", "", first, flags=re.I).strip()
+    if raw:
+        vendor = re.sub(r"\s*\b" + r"\s+".join(map(re.escape, raw.split())) + r"\b\s*$", "", first, flags=re.I).strip()
     doc["vendor"] = vendor or None
     doc["city"] = re.split(r"\s+(Rechnungsnr|Invoice|Lieferschein|Angebot)", lines[1])[0].strip() if len(lines) > 1 else None
 
@@ -88,7 +92,7 @@ def parse_text(lines: list[str], doc: dict) -> dict:
     doc["date"] = d
     po = grab(r"\b(QB-\d{3,})\b") or grab(r"(?:Bestellnr\.?|Bestellnummer|PO(?: No\.?)?|Order No\.?)\s*:?\s*([A-Z0-9\-]{4,})")
     doc["po"] = po.upper() if po else None
-    tax = grab(r"(?:Steuernr\.?|Steuernummer|USt-?IdNr\.?|VAT-?ID|VAT Reg\.? No\.?)\s*:?\s*([A-Z]{2}[\s\d]{6,16}\d|\d{2,3}/\d{3}/\d{4,5})")
+    tax = grab(r"(?:Steu[a-z]{1,7}\.?|USt-?IdNr\.?|VAT-?ID|VAT Reg\.? No\.?)\s*:?\s*([A-Z]{2}[\s\d]{6,16}\d|\d{2,3}/\d{3}/\d{4,5})")
     doc["tax_id"] = re.sub(r"\s+", " ", tax) if tax else None
     ib = grab(r"IBAN\s*:?\s*([A-Z]{2}\d{2}(?:\s?[A-Z0-9]){10,30})")
     doc["iban"] = re.sub(r"\s+", "", ib) if ib else None

@@ -1,4 +1,4 @@
-# Receipt review — 2026-11-02T18:23:22
+# Receipt review — 2026-11-02T18:35:24
 
 16 documents · **0 approve** · **16 investigate** · orders: `bestellungen.csv`
 

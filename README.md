@@ -8,7 +8,8 @@ skill/            the skill — SKILL.md, scripts/ (extract, rules, review), ass
 data/             the 16 test receipts + bestellungen.csv
 results/          output of the skill on data/ — results.csv, report.md, results.json, extracted/ (Claude's reading of b08)
 eval/             quality measurement — labels for the 16, generator for unseen receipts, evaluate.py
-index.html        optional browser viewer (live: https://shyam-gupta-chiliveri.github.io/invoice-review-agent/)
+index.html        optional browser version, same checks, reads photos with built-in OCR (live: https://shyam-gupta-chiliveri.github.io/invoice-review-agent/)
+vendor/ocr/       Tesseract.js worker, engine and German model for the browser OCR (no internet needed)
 ```
 
 ## How to run
@@ -20,6 +21,8 @@ index.html        optional browser viewer (live: https://shyam-gupta-chiliveri.g
 pip install -r skill/requirements.txt
 python skill/scripts/review.py data --out results
 ```
+
+**In the browser:** open the live link, or run `python3 -m http.server` in this folder and open http://localhost:8000 (photo OCR needs http://, not a double-clicked file). Drop the files from `data/`.
 
 ## Pipeline
 
@@ -45,7 +48,7 @@ Limit: I wrote both rules and labels, so this proves the rules do what they clai
 ## Deliberately not built
 
 - **LLM in the decision** — verdicts must be reproducible and auditable; the model only reads.
-- **Own OCR / API vision call** — inside the skill, Claude already reads images; a second path is more to maintain.
+- **OCR inside the skill** — in the skill, Claude reads images (more robust than OCR on photos). The browser version, which has no Claude, uses Tesseract.js OCR instead; the arithmetic checks catch misread digits.
 - **Vendor master, payment history, ERP connection** — not in the test data; the rules are the place they plug in.
 - **Persistence and approval workflow** — the skill decides, people act on `report.md`.
 
