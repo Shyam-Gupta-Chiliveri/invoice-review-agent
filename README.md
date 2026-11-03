@@ -1,6 +1,6 @@
 # Quellberg receipt review
 
-**English** · [Deutsch](README.de.md)
+*German version: README_DE.md*
 
 A Claude Skill that decides for every receipt in a folder: **APPROVE** (pay) or **INVESTIGATE** (a person looks), with the reason. PDFs are read from their text layer, photos and scans by OCR or Claude; fixed Python rules decide, so every verdict is reproducible and traceable.
 
