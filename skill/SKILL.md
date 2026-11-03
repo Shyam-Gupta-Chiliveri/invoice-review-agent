@@ -10,7 +10,7 @@ Reading is done by you and the scripts; the decision is made by fixed rules in `
 
 ## Run
 
-1. Install once: `pip install -r requirements.txt` (only `pdfplumber`).
+1. Install once: `pip install -r requirements.txt` (only `pdfplumber`). Optional, for photos and scans without you: Tesseract OCR with German (`apt install tesseract-ocr tesseract-ocr-deu`, or `brew install tesseract tesseract-lang`).
 2. Run the review on the folder (it finds `bestellungen.csv` in that folder, else uses `assets/bestellungen.csv`):
    ```
    python scripts/review.py <folder> --out <folder>/results
@@ -20,7 +20,7 @@ Reading is done by you and the scripts; the decision is made by fixed rules in `
 
 ## Reading step (photos and scans)
 
-The script cannot read images. For each file it lists:
+The script reads photos and scans with Tesseract when it is installed, and accepts that reading only if its numbers add up (lines = net, net × rate = VAT, net + VAT = gross). Everything else — no Tesseract, low confidence, or numbers that do not add up because digits were misread — is listed under NEEDS READING. For each file it lists:
 
 1. Open the image (or the rendered page it names under `<out>/pages/`) and read it yourself.
 2. Write `<out>/extracted/<filename>.json` following `assets/extraction_schema.json`, for example:

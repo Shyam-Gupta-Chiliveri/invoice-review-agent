@@ -84,6 +84,6 @@
     "must_find": [
       "NOT_READ"
     ],
-    "planted": "scan without text layer → needs Claude's reading step"
+    "planted": "low-resolution scan: OCR misreads digits, so it must go to Claude's reading step, never be guessed"
   }
 }

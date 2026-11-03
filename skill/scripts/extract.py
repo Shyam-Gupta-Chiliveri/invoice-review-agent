@@ -1,15 +1,23 @@
 """Step 1 — READ: turn one receipt into structured fields.
 
 PDFs with a text layer are parsed deterministically (pdfplumber).
-Photos and scans have no text layer: the skill asks Claude to read the image
-and write a JSON file with the same fields (see SKILL.md). That JSON is picked
-up here, so every document ends up in the same shape before any rule runs.
+Photos and scans have no text layer. They are read, in this order:
+  1. Claude's reading — a JSON file written by Claude (see SKILL.md), if present;
+  2. OCR — Tesseract, if installed, when its confidence is at least OCR_MIN_CONF and its
+     numbers add up (lines = net, net × rate = VAT, net + VAT = gross);
+  3. otherwise the document is listed as "needs reading" for Claude.
+Every path ends in the same fields, so the rules never know how a document was read.
 """
 from __future__ import annotations
 
 import json
 import re
+import shutil
+import subprocess
+import tempfile
 from pathlib import Path
+
+OCR_MIN_CONF = 70        # below this mean word confidence, OCR text is not trusted
 
 IMAGE_EXT = {".jpg", ".jpeg", ".png", ".webp", ".tif", ".tiff", ".bmp", ".heic"}
 DOC_EXT = IMAGE_EXT | {".pdf"}
@@ -167,7 +175,77 @@ def from_json(data: dict, doc: dict) -> dict:
     return doc
 
 
-def read_document(path: Path, extracted_dir: Path | None) -> dict:
+# ── OCR (Tesseract, optional) ─────────────────────────────────────────────
+def _tesseract_langs(exe):
+    try:
+        out = subprocess.run([exe, "--list-langs"], capture_output=True, text=True, timeout=20).stdout
+    except Exception:                                      # noqa: BLE001
+        return "eng"
+    have = {l.strip() for l in out.splitlines()[1:]}
+    langs = [l for l in ("deu", "eng") if l in have]
+    return "+".join(langs) or "eng"
+
+
+def ocr_image(image_path) -> tuple[list[str], float] | None:
+    """Lines and mean word confidence (0–100), or None if Tesseract is not installed or fails."""
+    exe = shutil.which("tesseract")
+    if not exe:
+        return None
+    try:
+        tsv = subprocess.run([exe, str(image_path), "stdout", "-l", _tesseract_langs(exe), "--psm", "6", "tsv"],
+                             capture_output=True, text=True, timeout=120).stdout
+    except Exception:                                      # noqa: BLE001
+        return None
+    rows, confs = {}, []
+    for r in tsv.splitlines()[1:]:
+        c = r.split("\t")
+        if len(c) < 12 or not c[11].strip():
+            continue
+        rows.setdefault((int(c[1]), int(c[2]), int(c[3]), int(c[4])), []).append(c[11].strip())
+        if float(c[10]) >= 0:
+            confs.append(float(c[10]))
+    lines = [" ".join(w) for _, w in sorted(rows.items())]
+    return lines, (sum(confs) / len(confs) if confs else 0.0)
+
+
+def _ocr_into(doc: dict, images: list) -> dict:
+    lines, confs = [], []
+    for img in images:
+        r = ocr_image(img)
+        if r is None:
+            return doc                                     # no Tesseract → stays "needs reading"
+        lines += r[0]; confs.append(r[1])
+    conf = sum(confs) / len(confs) if confs else 0.0
+    if sum(len(l) for l in lines) < 40 or conf < OCR_MIN_CONF:
+        doc["read_error"] = f"OCR found too little text or low confidence ({conf:.0f} %) — needs reading"
+        return doc
+    parsed = parse_text(lines, dict(doc, lines=[]))
+    if not _self_consistent(parsed):
+        doc["read_error"] = (f"OCR read the document ({conf:.0f} % confidence) but its numbers do not add up, "
+                             "so digits were probably misread — needs reading")
+        return doc
+    parsed["needs_reading"] = False
+    parsed["source"] = f"ocr ({conf:.0f} %)"
+    parsed["ocr_conf"] = round(conf, 1)
+    return parsed
+
+
+def _self_consistent(d: dict) -> bool:
+    """An OCR reading is trusted only if its own numbers agree: lines = net, net × rate = VAT, net + VAT = gross.
+    A misread digit almost always breaks one of these; a real vendor error is then found by Claude's reading."""
+    if d["net"] is None:
+        return d["doc_kind"] in ("delivery_note", "quote") and bool(d["invoice_number"])
+    priced = [l["total"] for l in d["lines"] if l["total"] is not None]
+    if not priced or abs(round(sum(priced), 2) - d["net"]) > 0.02:
+        return False
+    if d["vat"] is not None and d["vat_rate"] is not None and abs(round(d["net"] * d["vat_rate"] / 100, 2) - d["vat"]) > 0.02:
+        return False
+    if d["gross"] is not None and abs(round(d["net"] + (d["vat"] or 0), 2) - d["gross"]) > 0.02:
+        return False
+    return True
+
+
+def read_document(path: Path, extracted_dir: Path | None, ocr: bool = True) -> dict:
     doc = empty_doc(path)
     sidecar = extracted_dir / (path.name + ".json") if extracted_dir else None
     if sidecar and sidecar.exists():                       # read by Claude (vision)
@@ -181,7 +259,7 @@ def read_document(path: Path, extracted_dir: Path | None) -> dict:
     if path.suffix.lower() in IMAGE_EXT:
         doc["needs_reading"] = True
         doc["source"] = "image"
-        return doc
+        return _ocr_into(doc, [path]) if ocr else doc
     try:
         import pdfplumber
         with pdfplumber.open(path) as pdf:
@@ -195,6 +273,14 @@ def read_document(path: Path, extracted_dir: Path | None) -> dict:
     if sum(len(l) for l in lines) < 40:                    # scanned PDF: no usable text layer
         doc["needs_reading"] = True
         doc["source"] = "scanned-pdf"
-        return doc
+        if not ocr or not shutil.which("tesseract"):
+            return doc
+        with tempfile.TemporaryDirectory() as tmp, pdfplumber.open(path) as pdf:
+            pages = []
+            for i, page in enumerate(pdf.pages):
+                png = Path(tmp) / f"p{i}.png"
+                page.to_image(resolution=200).save(png)
+                pages.append(png)
+            return _ocr_into(doc, pages)
     doc["source"] = "pdf-text"
     return parse_text(lines, doc)

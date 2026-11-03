@@ -5,8 +5,9 @@
 
 Reads every PDF/image in <folder>, checks it against the open orders and the rest of
 the batch, and writes <out>/results.csv, results.json and report.md.
-Photos and scans are listed under "needs reading": Claude reads them (see SKILL.md),
-writes <out>/extracted/<file>.json, and this script is run again.
+Photos and scans are read with Tesseract OCR when it is installed; anything OCR cannot read
+confidently is listed under "needs reading": Claude reads it (see SKILL.md), writes
+<out>/extracted/<file>.json, and this script is run again.
 """
 from __future__ import annotations
 
@@ -54,6 +55,7 @@ def main(argv=None):
     ap.add_argument("--orders", help="purchase orders CSV (default: bestellungen.csv in folder, else bundled)")
     ap.add_argument("--out", default="results", help="output folder (default: results)")
     ap.add_argument("--extracted", help="folder with Claude's extraction JSONs (default: <out>/extracted)")
+    ap.add_argument("--no-ocr", action="store_true", help="do not run Tesseract on photos/scans; list them for Claude to read")
     a = ap.parse_args(argv)
 
     folder, out = Path(a.folder), Path(a.out)
@@ -65,7 +67,7 @@ def main(argv=None):
     files = sorted(p for p in folder.iterdir() if p.suffix.lower() in DOC_EXT and not p.name.startswith("."))
     if not files:
         sys.exit(f"No receipts in {folder}")
-    docs = [read_document(p, extracted) for p in files]
+    docs = [read_document(p, extracted, ocr=not a.no_ocr) for p in files]
 
     results = []
     for d in docs:

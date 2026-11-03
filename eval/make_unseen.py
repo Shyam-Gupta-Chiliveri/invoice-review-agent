@@ -167,7 +167,7 @@ def main():
     german(OUT / "_src_scan.pdf", "Tankservice Mitte GmbH", "TM-1201", "14.07.2026", "QB-20007",
            [("CIP-Reinigung Abfülllinie", 1, 890.00)])
     scanned(OUT / "_src_scan.pdf", OUT / "u13_tankservice_scan.pdf"); (OUT / "_src_scan.pdf").unlink()
-    case("u13_tankservice_scan.pdf", "INVESTIGATE", ["NOT_READ"], "scan without text layer → needs Claude's reading step")
+    case("u13_tankservice_scan.pdf", "INVESTIGATE", ["NOT_READ"], "low-resolution scan: OCR misreads digits, so it must go to Claude's reading step, never be guessed")
 
     (OUT / "expected.json").write_text(json.dumps(exp, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"wrote {len(exp)} receipts + bestellungen.csv to {OUT}")

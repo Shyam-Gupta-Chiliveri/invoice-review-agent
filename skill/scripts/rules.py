@@ -74,6 +74,8 @@ def check(doc: dict, others: list[dict], orders: dict) -> list[dict]:
         return F
 
     is_inv = doc["doc_kind"] == "invoice" and not doc["not_invoice_note"]
+    if doc.get("ocr_conf") is not None:
+        add("ok", "OCR", "Read by OCR", f"Photo/scan read with Tesseract (confidence {doc['ocr_conf']:.0f} %); amounts are cross-checked by the arithmetic checks")
     priced = [l for l in doc["lines"] if l["total"] is not None]
 
     # document type
