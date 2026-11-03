@@ -1,50 +1,50 @@
 # Quellberg receipt review
 
-For every receipt in a folder the skill decides **APPROVE** (pay) or **INVESTIGATE** (a person looks), with the reason. Claude only reads photos and scans. Fixed Python rules make the decision, so every verdict is reproducible.
+A Claude Skill that decides for every receipt in a folder: **APPROVE** (pay) or **INVESTIGATE** (a person looks), with the reason and the evidence. Claude reads what code cannot (photos, scans); fixed Python rules make the decision, so the same receipt always gets the same verdict and every verdict can be traced.
 
-**Live demo:** [https://invoice.138.2.179.154.sslip.io/](https://invoice.138.2.179.154.sslip.io/) — drop the files from `data/`. Same checks as the skill. Docker on an Oracle Cloud Always Free VM, with HTTPS. Cost: €0.
+**Live demo:** https://invoice.138.2.179.154.sslip.io/ (drop the files from `data/`) · **Code:** https://github.com/Shyam-Gupta-Chiliveri/invoice-review-agent
 
 ```
-skill/     SKILL.md, scripts (extract, rules, review), bestellungen.csv, extraction schema
-data/      16 test receipts + bestellungen.csv
-results/   this run: results.csv, results.json, report.md, extracted/
-eval/      labels for the 16, unseen-receipt generator, evaluate.py
+skill/     the skill: SKILL.md, scripts/ (extract.py, rules.py, review.py), assets/ (bestellungen.csv, extraction schema)
+data/      the 16 receipts + bestellungen.csv
+results/   the skill's run on data/: results.csv, report.md, results.json, extracted/ (Claude's reading of the photo b08)
+eval/      quality measurement: hand labels, 13 unseen receipts with planted problems, evaluate.py
+index.html browser version of the same checks (+ OCR, AI assistant); Dockerfile, docker-compose.yml, deploy/ to host it
 ```
 
 ## How to run
 
-**Claude Skill** (Claude Code, or upload `skill/`): ask *"Review the receipts in `data/`"*. Claude runs the script, reads any photo it flags, writes `results/extracted/`, runs again, and summarises.
+**With Claude (the skill):** in Claude Code open this folder, or upload `skill/` as a skill, and ask *"Review the receipts in data/"*. Claude runs `review.py`, reads every photo or scan it reports into `results/extracted/<file>.json`, runs it again and summarises the decisions.
 
-**Without Claude** (PDFs; photos are flagged "needs reading"):
-
+**Without Claude** (Python 3.10+; PDFs are read, photos are listed as "needs reading" unless a reading is in `<out>/extracted/`):
 ```
 pip install -r skill/requirements.txt
-python skill/scripts/review.py data --out results
+python skill/scripts/review.py data --out results          # any folder works: review.py <folder> [--orders file.csv]
 ```
+Output: `results.csv` (one line per receipt), `report.md` (investigate first, with reasons), `results.json` (all fields and findings).
 
-**Browser:** open the live link. Locally, `docker compose up -d --build` then http://localhost:8090. Photo OCR needs http, not a double-clicked file. The AI Assistant (chat button, bottom right) answers questions about the app and the uploaded batch, in English or German following the EN/DE switch: it retrieves from the app docs and one chunk per document, shared IBAN and order (BM25), then answers from those facts with sources. Inside Claude, Claude writes the answer from the retrieved facts; elsewhere it is composed without a model.
+**Browser:** open the live demo, or `docker compose up -d --build` → http://localhost:8090. Same rules in JavaScript, OCR for photos (Tesseract.js, bundled), PDF view with highlighted fields, IBAN-ring view, vendor email drafts, and an AI assistant (EN/DE) that answers questions about the batch from retrieved facts. Hosted on an Oracle Cloud Always Free VM in Docker (nginx).
 
-## Checks
+## How it decides
 
-PDFs are read from the text layer (pdfplumber) into fields and line items. Checks: purchase order (`bestellungen.csv` — order exists, vendor, quantity, unit price, extras, value), arithmetic (lines, VAT, gross), §14 UStG fields, document type (a delivery note or quote is not payable), IBAN checksum, and the batch (one IBAN across vendors, duplicates). Any finding → INVESTIGATE (HIGH if money must not leave); none → APPROVE. Finding codes are in `skill/SKILL.md`.
+**Read** fields and line items from the PDF text layer (pdfplumber) or, for images, from Claude's reading. **Check** against `bestellungen.csv` (order exists, right vendor, quantity, unit price, items not ordered, order value), arithmetic (lines, VAT, gross), §14 UStG mandatory fields, document type (delivery note and quote are not payable), IBAN checksum, and across the batch (one IBAN used by different vendors, duplicates). **Decide:** a blocking finding → INVESTIGATE, priority HIGH; a review finding → INVESTIGATE; none → APPROVE. Codes and severities: `skill/SKILL.md`; all rules: `skill/scripts/rules.py`.
 
-On the 16: **0 approve, 16 investigate (14 high).** One IBAN on 11 vendors; b05 fails the IBAN checksum; b10 duplicates b06; b07 is 50,000 caps over the order; b03 net is €12.47 above its lines; b04 VAT is €4.21 short; b12 is a delivery note and b15 is a quote (`results/report.md`). A shared IBAN is do-not-pay until a vendor master exists. No purchase order means investigate — one constant in `rules.py` if a small-amount limit is wanted.
+**Result on the 16: 0 approve, 16 investigate (14 high).** One IBAN on 11 vendors' receipts; b05's IBAN fails the checksum (one digit off); b10 repeats b06; b07 bills 50,000 caps more than ordered; b03's net is €12.47 above its own lines; b04's VAT is €4.21 short; b12 is a delivery note, b15 a quote; b02 and b13 are held for items not ordered / no order. Details: `results/report.md`.
 
-## Quality
+## How I measured quality
 
-`python eval/evaluate.py data eval/expected_16.json results/extracted` — hand labels for the decision, the problem an accountant must raise, and 7 printed fields: **16/16 decisions, 32/32 required findings, 112/112 fields.**
-
-`python eval/make_unseen.py && python eval/evaluate.py eval/unseen eval/unseen/expected.json` — 13 receipts in two new layouts, each with one planted problem or none: **13/13 decisions, 2/2 clean ones approved, 11/11 planted problems found for the right reason.**
-
-I wrote both the rules and the labels, so this shows the rules survive a layout change. The live measure is the false-alarm rate on Quellberg's inbox.
+- **The 16, hand-labelled** (decision, the problem an accountant must raise, 7 printed fields each): `python eval/evaluate.py data eval/expected_16.json results/extracted` → **16/16 decisions, 32/32 required findings, 112/112 fields.**
+- **Unseen receipts:** 13 generated in two new layouts (German/English, other labels, date and number formats), each with one planted problem or none: `python eval/evaluate.py eval/unseen eval/unseen/expected.json` → **13/13 decisions, both clean ones approved, 11/11 problems found for the right reason** (regenerate with `pip install reportlab && python eval/make_unseen.py`).
+- **Limit:** I wrote both the rules and the labels, so this proves the rules do what they claim and survive layout changes, not that they match Quellberg's policy. That is measured live: the false-alarm rate on investigated receipts.
 
 ## Deliberately not built
 
-- No LLM in the decision. Verdicts must be auditable; the model only reads.
-- No OCR inside the skill. Claude reads images. The browser uses Tesseract.js; arithmetic catches a misread digit.
-- No vendor master, payment history, or ERP connection. Those plug into the same rules.
-- No approval workflow. The skill decides; people act on `report.md`.
+- **No LLM in the decision.** Payments need reproducible, auditable verdicts; the model only reads.
+- **No OCR in the skill.** Claude reads images better than OCR on photos; the arithmetic checks catch a misread digit either way.
+- **No vendor master, payment history or ERP link.** Not in the test data. With a vendor master, "shared IBAN" becomes "IBAN differs from the master".
+- **No approval workflow or database.** The skill decides; people act on `report.md`.
+- **Two judgment calls, each one line in `rules.py`:** a shared IBAN is do-not-pay; a receipt without an order is always investigated (an amount limit can be added).
 
-## Enterprise
+## Enterprise deployment
 
-Read access only to the inbox folder and the order export. Payment release stays a human step in the ERP. Service account, least privilege, secrets in the vault. Each run appends `results.json` (file hash, fields, findings, git commit). Monitor the APPROVE share, findings per code, documents needing reading, and runtime; alert on drift, such as a sudden 0% approve. A reading failure is INVESTIGATE, never APPROVE. Accountants label each closed case real or false alarm; that rate, and any later missed payment, become the next eval cases.
+**Access:** read-only service account on the inbox folder and the order export; payment release stays a human step in the ERP; secrets in the client's vault. **Traceability:** every run appends `results.json` (file hash, extracted fields, each finding with its rule, git commit) to append-only storage. **Monitoring:** approve share per day, findings per code, documents needing reading, runtime; alert on drift (e.g. approve share drops to 0 %). **Model failure:** if reading fails or times out, the receipt is INVESTIGATE, never APPROVE: an outage means more manual work, not unchecked payments. **Quality in operation:** accountants mark each investigated receipt "real problem" or "false alarm"; the weekly false-alarm rate and any problem found after payment become new eval cases before the next rule change.
