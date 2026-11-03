@@ -1,6 +1,6 @@
 # Quellberg Belegprüfung
 
-*Englische Version: README.md*
+[English](README.md) · **Deutsch**
 
 Ein Claude Skill, der für jeden Beleg in einem Ordner entscheidet: **APPROVE** (zahlen) oder **INVESTIGATE** (ein Mensch prüft), jeweils mit Begründung. PDFs werden aus ihrer Textebene gelesen, Fotos und Scans per OCR oder von Claude; feste Python-Regeln entscheiden, daher ist jedes Urteil reproduzierbar und nachvollziehbar.
 
