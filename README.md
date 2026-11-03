@@ -47,4 +47,12 @@ Output: `results.csv` (one line per receipt), `report.md` (investigate first, wi
 
 ## Enterprise deployment
 
-**Access:** read-only service account on the inbox folder and the order export; payment release stays a human step in the ERP; secrets in the client's vault. **Traceability:** every run appends `results.json` (file hash, extracted fields, each finding with its rule, git commit) to append-only storage. **Monitoring:** approve share per day, findings per code, documents needing reading, runtime; alert on drift (e.g. approve share drops to 0 %). **Model failure:** if reading fails or times out, the receipt is INVESTIGATE, never APPROVE: an outage means more manual work, not unchecked payments. **Quality in operation:** accountants mark each investigated receipt "real problem" or "false alarm"; the weekly false-alarm rate and any problem found after payment become new eval cases before the next rule change.
+**Access:** read-only service account on the inbox folder and the order export; payment release stays a human step in the ERP; secrets in the client's vault.
+
+**Traceability:** every run appends `results.json` (file hash, extracted fields, each finding with its rule, git commit) to append-only storage.
+
+**Monitoring:** approve share per day, findings per code, documents needing reading, runtime; alert on drift (e.g. approve share drops to 0 %).
+
+**Model failure:** if reading fails or times out, the receipt is INVESTIGATE, never APPROVE: an outage means more manual work, not unchecked payments.
+
+**Quality in operation:** accountants mark each investigated receipt "real problem" or "false alarm"; the weekly false-alarm rate and any problem found after payment become new eval cases before the next rule change.
