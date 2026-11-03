@@ -27,9 +27,17 @@ Output: `results.csv` (one line per receipt), `report.md` (investigate first, wi
 
 ## How it decides
 
-**Read** fields and line items from the PDF text layer (pdfplumber); photos and scans by OCR (Tesseract). An OCR reading is accepted only if its numbers add up (lines = net, net × rate = VAT, net + VAT = gross); otherwise Claude reads it, so a misread digit is never approved or blamed on the vendor. **Check** against `bestellungen.csv` (order exists, right vendor, quantity, unit price, items not ordered, order value), arithmetic (lines, VAT, gross), §14 UStG mandatory fields, document type (delivery note and quote are not payable), IBAN checksum, and across the batch (one IBAN used by different vendors, duplicates). **Decide:** a blocking finding → INVESTIGATE, priority HIGH; a review finding → INVESTIGATE; none → APPROVE. Codes and severities: `skill/SKILL.md`; all rules: `skill/scripts/rules.py`.
+**Read:** fields and line items from the PDF text layer (pdfplumber); photos and scans by OCR (Tesseract).
 
-**Result on the 16: 0 approve, 16 investigate (14 high).** One IBAN on 11 vendors' receipts; b05's IBAN fails the checksum (one digit off); b10 repeats b06; b07 bills 50,000 caps more than ordered; b03's net is €12.47 above its own lines; b04's VAT is €4.21 short; b12 is a delivery note, b15 a quote; b02 and b13 are held for items not ordered / no order. Details: `results/report.md`.
+**OCR safeguard:** an OCR reading is accepted only if its numbers add up (lines = net, net × rate = VAT, net + VAT = gross); otherwise Claude reads it, so a misread digit is never approved or blamed on the vendor.
+
+**Check:** against `bestellungen.csv` (order exists, right vendor, quantity, unit price, items not ordered, order value), arithmetic (lines, VAT, gross), §14 UStG mandatory fields, document type (delivery note and quote are not payable), IBAN checksum, and across the batch (one IBAN used by different vendors, duplicates).
+
+**Decide:** a blocking finding → INVESTIGATE, priority HIGH; a review finding → INVESTIGATE; none → APPROVE. Codes and severities in `skill/SKILL.md`, all rules in `skill/scripts/rules.py`.
+
+**Result on the 16:** 0 approve, 16 investigate (14 high). Details in `results/report.md`.
+
+**Main findings:** one IBAN on 11 vendors' receipts; b05's IBAN fails the checksum (one digit off); b10 repeats b06; b07 bills 50,000 caps more than ordered; b03's net is €12.47 above its own lines; b04's VAT is €4.21 short; b12 is a delivery note, b15 a quote; b02 and b13 are held for items not ordered / no order.
 
 ## How I measured quality
 
