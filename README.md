@@ -2,7 +2,7 @@
 
 A Claude Skill that decides for every receipt in a folder: **APPROVE** (pay) or **INVESTIGATE** (a person looks), with the reason. PDFs are read from their text layer, photos and scans by OCR or Claude; fixed Python rules decide, so every verdict is reproducible and traceable.
 
-**Live demo:** https://invoice.138.2.179.154.sslip.io/ (drop the files from `data/`) · **Code:** https://github.com/Shyam-Gupta-Chiliveri/invoice-review-agent
+**Live demo — no installation, no terminal:** open https://invoice.138.2.179.154.sslip.io/ in any browser and drop the receipts from `data/` (PDFs and the photo) onto the queue; it reads, checks and decides each one on the spot. · **Code:** https://github.com/Shyam-Gupta-Chiliveri/invoice-review-agent
 
 ```
 skill/     the skill: SKILL.md, scripts/ (extract.py, rules.py, review.py), assets/ (bestellungen.csv, extraction schema)
